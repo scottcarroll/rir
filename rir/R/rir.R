@@ -43,3 +43,10 @@ rir.src <- function()  {
 rir.body <- function(f) {
     .Call("rir_body", f);
 }
+
+
+
+
+rir.da <- function(f) {
+    invisible(.Call("rir_da", f))
+}

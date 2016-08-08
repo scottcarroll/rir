@@ -114,13 +114,12 @@ DEF_INSTR(add_, 0, 2, 1, 0, 0)
  */
 DEF_INSTR(sub_, 0, 2, 1, 0, 0)
 /**
- * add_:: pop two values from object stack, add them, push result on object
+ * sub_:: pop two values from object stack, subtract them, push result on object
  * stack
  */
 DEF_INSTR(lt_, 0, 2, 1, 0, 0)
 /**
- * add_:: pop two values from object stack, add them, push result on object
- * stack
+ * lt_:: ???
  */
 DEF_INSTR(isspecial_, 1, 0, 0, 0, 0)
 /**

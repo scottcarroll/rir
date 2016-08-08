@@ -64,6 +64,16 @@ class CodeEditor {
             pos = pos->prev;
         }
 
+        /** The editor and range must be the same for comparison of cursors.
+         */
+        bool operator == (Cursor const & other) {
+            return pos == other.pos and editor == other.editor and begin == other.begin and end == other.end;
+        }
+
+        bool operator != (Cursor const & other) {
+            return pos != other.pos or editor != other.editor or begin != other.begin or end != other.end;
+        }
+
         BC operator*() { return pos->bc; }
 
         Cursor& operator<<(BC bc) {
