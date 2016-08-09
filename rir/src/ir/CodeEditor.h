@@ -37,6 +37,12 @@ class CodeEditor {
     SEXP ast;
 
   public:
+
+
+
+
+
+
     class Cursor {
         CodeEditor* editor;
         BytecodeList* pos;

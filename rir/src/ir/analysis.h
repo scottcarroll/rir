@@ -413,69 +413,6 @@ private:
     Receiver & receiver_;
 };
 
-/** A simple dispatcher for control flow related instructions only.
-
- */
-class ControlFlowDispatcher : public Dispatcher {
-public:
-    /** Control flow receiver is only concerned with instructions that may alter the control flow.
-
-      All of them are abstract so that they must be redefined in actual implementations.
-     */
-    class Receiver {
-    public:
-        virtual ~Receiver() {
-        }
-    protected:
-        friend class ControlFlowDispatcher;
-
-        virtual void ret(BC ins) = 0;
-
-        virtual void brtrue(BC ins) = 0;
-
-        virtual void brfalse(BC ins) = 0;
-
-        virtual void br(BC ins) = 0;
-
-        virtual void brobj(BC ins) = 0;
-    };
-
-    ControlFlowDispatcher(Receiver & receiver):
-        receiver_(receiver) {
-    }
-protected:
-
-    void doDispatch(CodeEditor::Cursor & cursor) override {
-        BC cur = *cursor;
-        switch (cur.bc) {
-            case BC_t::ret_:
-                receiver_.ret(cur);
-                break;
-            case BC_t::brtrue_:
-                receiver_.brtrue(cur);
-                break;
-            case BC_t::brfalse_:
-                receiver_.brfalse(cur);
-                break;
-            case BC_t::br_:
-                receiver_.br(cur);
-                break;
-            case BC_t::brobj_:
-                receiver_.brobj(cur);
-                break;
-            default:
-                // dispatcher failure because of non-cf instruction
-                fail();
-        }
-        // move to the next instruction
-        ++cursor;
-    }
-
-private:
-
-    Receiver & receiver_;
-
-};
 
 
 /** The driver defines the pattern of which instructions and when will the dispatcher see.
@@ -537,6 +474,66 @@ public:
 };
 
 
+// ===============================================================================================
+
+/** The control flow dispatcher is an example of non-instruction based dispatcher and receiver.
+
+  Here we do not care about the instructions as much as about the semantics, i.e. whether the execution terminates, or if we have conditional or unconditional jump (and where to), or if we have arrived at a label.
+ */
+class ControlFlowDispatcher : public Dispatcher {
+public:
+
+    class Receiver {
+    public:
+        virtual ~Receiver() {
+        }
+    protected:
+        friend class ControlFlowDispatcher;
+
+        virtual void conditionalJump(CodeEditor::Cursor target) = 0;
+
+        virtual void unconditionalJump(CodeEditor::Cursor target) = 0;
+
+        virtual void termination(CodeEditor::Cursor const & at) = 0;
+
+        virtual void label(CodeEditor::Cursor const & at) = 0;
+    };
+
+    ControlFlowDispatcher(Receiver & receiver):
+        receiver_(receiver) {
+    }
+
+protected:
+
+    void doDispatch(CodeEditor::Cursor & cursor) override {
+        BC cur = *cursor;
+        switch (cur.bc) {
+            case BC_t::ret_:
+                receiver_.termination(cursor);
+                break;
+            case BC_t::label:
+                receiver_.label(cursor);
+                break;
+            case BC_t::brtrue_:
+            case BC_t::brfalse_:
+                // TODO
+                assert(false and "not implemented");
+                break;
+            case BC_t::br_:
+                // TODO
+                assert(false and "not implemented");
+                break;
+            default:
+                // dispatcher failure because of non-cf instruction
+                fail();
+        }
+        // let's advance the cursor so that the dispatcher is generally useful
+        ++cursor;
+    }
+
+private:
+    Receiver & receiver_;
+};
 
 /** Forward analysis pass driver.
 
@@ -547,40 +544,56 @@ class ForwardDriver : public Driver {
 
 protected:
 
-    ForwardDriver(State * initialiState):
+    /** The control flow receiver actually does the driving.
+     */
+    class CFReceiver : public ControlFlowDispatcher::Receiver {
+    public:
+        CFReceiver(ForwardDriver & driver):
+            driver_(driver) {
+        }
+    protected:
+        void conditionalJump(CodeEditor::Cursor target) override;
+
+        void unconditionalJump(CodeEditor::Cursor target) override;
+
+        void termination(CodeEditor::Cursor const & at) override;
+
+        void label(CodeEditor::Cursor const & at) override;
+
+    private:
+        // a bit wasteful, but safe. Another option would be to make the forward driver itself implement the ControlFlow::Receiver interface, but that would mean the ControlFlow receiver would be disabled from future considerations.
+        ForwardDriver & driver_;
+    };
+
+    ForwardDriver(State * initialState):
+        receiver_(*this),
+        dispatcher_(receiver_),
         initialState_(initialState) {
     }
-
-    class CFReceiver;
-
-
-
-
 
     void doRun(CodeEditor & code, Dispatcher & dispatcher) override {
         q_.clear();
         q_.push_back(Item(code.getCursor(), initialState_->clone()));
         while (not q_.empty()) {
-            // get the current
+            terminate_ = false;
+            // get stuff from the queue
             CodeEditor::Cursor c = q_.front().cursor;
-            current_ = q_.front().state;
+            State * incommingState = q_.front().state;
             q_.pop_front();
-            // check the incomming state.
-            State * stored = storedState(c);
-            // we haven't seen the state yet, use incomming as stored
-            if (stored == nullptr) {
+            // check checkpoint and set current state
+            checkFixpoint(c, incommingState);
 
+
+            while (not terminate_) {
+                // keep backup of the cursor for cf operations
+                CodeEditor::Cursor cx = c;
+                // dispatch proper
+                dispatcher.dispatch(c);
+                // dispatch based on control flow
+                dispatcher_.dispatch(cx);
             }
 
-            // now do the dispatching for the current cursor.
-
-
-
-
-
         }
-
-
     }
 
 protected:
@@ -605,52 +618,75 @@ protected:
         return nullptr;
     }
 
-    ControlFlowDispatcher cfDispatcher_;
+    /** Terminates current execution.
+
+      Useful when the analysis, or the driver itself determine that further execution is not necessary.
+     */
+    void terminateCurrentExecution() {
+        terminate_ = true;
+    }
+
+    void checkFixpoint(CodeEditor::Cursor const & current, State * incomming) {
+
+        State * stored = storedState(current);
+        if (stored == nullptr) {
+            stored = incomming->clone();
+            storeState(current, stored);
+            currentState_ = incomming;
+        } else {
+            if (not stored->mergeWith(incomming)) {
+                terminateCurrentExecution();
+            } else {
+                currentState_ = stored->clone();
+            }
+            delete incomming;
+        }
+    }
+
+private:
+
+    CFReceiver receiver_;
+    ControlFlowDispatcher dispatcher_;
 
     std::deque<Item> q_;
     State * initialState_;
-    State * current_;
-};
+    State * currentState_;
 
-
-/** Does the scheduling for the forward driver.
- */
-class ForwardDriver::CFReceiver : public ControlFlowDispatcher::Receiver {
-public:
-    CFReceiver(ForwardDriver & driver):
-        driver_(driver) {
-    }
-
-protected:
-    /** Return does nothing as it simply terminates the current execution.
+    /** If true, terminates the execution of current queue path.
      */
-    virtual void ret(BC ins) override {
-        // noop
-    }
-
-    virtual void brtrue(BC ins) override {
-        // enque the next instruction with
-
-    }
-
-    virtual void brfalse(BC ins) override {
-
-    }
-
-    virtual void br(BC ins) override {
-        // create a cursor for the target jump and enque it with current state
-    }
-
-    virtual void brobj(BC ins) override {
-
-    }
-
-
-private:
-    ForwardDriver & driver_;
-
+    bool terminate_;
 
 };
+
+/** Conditional labale queues the target cursor with clone of current state as incomming and continues the execution.
+ */
+inline void ForwardDriver::CFReceiver::conditionalJump(CodeEditor::Cursor target) {
+    driver_.q_.push_back(Item(target, driver_.currentState_->clone()));
+}
+
+/** Unconditional label queues the target cursor and current state, then terminates current execution.
+
+  There is no need to delete current state as it will be reused in the queued branch.
+ */
+inline void ForwardDriver::CFReceiver::unconditionalJump(CodeEditor::Cursor target) {
+    driver_.q_.push_back(Item(target, driver_.currentState_));
+    driver_.terminateCurrentExecution();
+}
+
+/** When we see a terminator, just terminate the current execution.
+ */
+inline void ForwardDriver::CFReceiver::termination(CodeEditor::Cursor const & at) {
+    driver_.terminateCurrentExecution();
+    delete driver_.currentState_;
+}
+
+/** A label is basically a fixpoint check.
+ */
+inline void ForwardDriver::CFReceiver::label(CodeEditor::Cursor const & at) {
+    driver_.checkFixpoint(at, driver_.currentState_);
+}
+
+
 
 
 
