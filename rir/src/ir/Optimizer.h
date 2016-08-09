@@ -130,7 +130,7 @@ class Optimizer {
         CodeEditor edit(fun);
         for (int i = 0; i < 5; ++i) {
             optimize_(edit);
-            if (!edit.changed)
+            if (!edit.changed())
                 break;
         }
         return edit.finalize();

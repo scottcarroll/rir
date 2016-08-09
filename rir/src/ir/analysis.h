@@ -614,7 +614,6 @@ protected:
     }
 
     State * storedState(CodeEditor::Cursor const & c) {
-        // TODO
         return nullptr;
     }
 

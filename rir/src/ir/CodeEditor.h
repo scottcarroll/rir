@@ -16,6 +16,8 @@ namespace rir {
 
 class CodeEditor {
   private:
+    friend class Cursor;
+
     struct BytecodeList {
         BC bc;
         SEXP src = nullptr;
@@ -25,67 +27,88 @@ class CodeEditor {
         BytecodeList() {}
     };
 
+    /** Marks given label to point to a list node containing the label instruction.
+     */
+    void setLabel(Label index, BytecodeList* bc) {
+        assert (bc->bc.bc == BC_t::label);
+        if (labels_.size() < index + 1)
+            labels_.resize(index + 1);
+        labels_[index] = bc;
+    }
+
+
+
     Label nextLabel = 0;
 
-    struct BCStore {
-        BytecodeList front;
-        BytecodeList last;
-    };
-    BCStore* entryPoint;
+    BytecodeList front;
+    BytecodeList last;
     std::vector<CodeEditor*> promises;
 
     SEXP ast;
+    bool changed_ = false;
+
+    std::vector<BytecodeList*> labels_;
 
   public:
-
-
-
-
-
 
     class Cursor {
         CodeEditor* editor;
         BytecodeList* pos;
-        BytecodeList* begin;
-        BytecodeList* end;
 
       public:
-        Cursor(CodeEditor* editor, BytecodeList* pos, BCStore* store)
-            : editor(editor), pos(pos), begin(&store->front),
-              end(&store->last) {}
+        Cursor(CodeEditor* editor, BytecodeList* pos)
+            : editor(editor), pos(pos) {
+        }
 
         Label mkLabel() { return editor->nextLabel++; }
 
-        bool atEnd() { return pos == end; }
+        bool atEnd() const { return pos->next == nullptr; }
 
-        bool firstInstruction() { return begin->next == pos; }
+        bool firstInstruction() const { return pos->prev == nullptr; }
 
-        void operator++() {
+        Cursor & operator++() {
             assert(!atEnd());
             pos = pos->next;
+            return *this;
         }
 
-        void operator--() {
+        Cursor & operator--() {
             assert(!firstInstruction());
             pos = pos->prev;
+            return *this;
+        }
+
+        Cursor operator++(int) {
+            Cursor result = *this;
+            ++(*this);
+            return result;
+        }
+
+        Cursor operator--(int) {
+            Cursor result = *this;
+            --(*this);
+            return result;
         }
 
         /** The editor and range must be the same for comparison of cursors.
          */
-        bool operator == (Cursor const & other) {
-            return pos == other.pos and editor == other.editor and begin == other.begin and end == other.end;
+        bool operator == (Cursor const & other) const {
+            return pos == other.pos and editor == other.editor;
         }
 
-        bool operator != (Cursor const & other) {
-            return pos != other.pos or editor != other.editor or begin != other.begin or end != other.end;
+        bool operator != (Cursor const & other) const {
+            return pos != other.pos or editor != other.editor;
         }
 
         BC operator*() { return pos->bc; }
 
         Cursor& operator<<(BC bc) {
-            editor->changed = true;
+            editor->changed_ = true;
 
             auto insert = new BytecodeList(bc);
+            // if label is inserted, update the list of labels
+            if (bc.bc == BC_t::label)
+                editor->setLabel(bc.immediate.offset, insert);
 
             BytecodeList* prev = pos->prev;
             BytecodeList* next = pos;
@@ -105,7 +128,7 @@ class CodeEditor {
         SEXP ast() { return pos->src; }
 
         Cursor& operator<<(CodeEditor& other) {
-            editor->changed = true;
+            editor->changed_ = true;
 
             size_t labels = editor->nextLabel;
             size_t proms = editor->promises.size();
@@ -159,8 +182,10 @@ class CodeEditor {
                     }
                 }
                 // Fix labels
-                if (insert->bc.bc == BC_t::label)
+                if (insert->bc.bc == BC_t::label) {
                     insert->bc.immediate.offset += labels;
+                    editor->setLabel(insert->bc.immediate.offset, insert);
+                }
                 // Adjust jmp targets
                 if (insert->bc.isJmp()) {
                     insert->bc.immediate.offset += labels;
@@ -176,17 +201,17 @@ class CodeEditor {
         }
 
         void addAst(SEXP ast) {
-            editor->changed = true;
+            editor->changed_ = true;
 
             assert(!pos->src);
             pos->src = ast;
         }
 
         void remove() {
-            editor->changed = true;
+            editor->changed_ = true;
 
             assert(!atEnd());
-            assert(pos != begin);
+            assert(pos != & editor->front);
 
             BytecodeList* prev = pos->prev;
             BytecodeList* next = pos->next;
@@ -198,25 +223,46 @@ class CodeEditor {
             pos = next;
         }
 
-        bool empty() { return begin->next == end; }
+        bool empty() const { return editor->empty(); }
 
         void print();
     };
-    friend Cursor;
+
+    bool empty() const {
+        return front.next == & last;
+    }
+
+    bool changed() const {
+        return changed_;
+    }
+
+    Cursor begin() {
+        return Cursor(this, front.next);
+    }
+
+    Cursor end() {
+        return Cursor(this, & last);
+    }
+
+    /** Returns cursor to given label (the label instruction).
+     */
+    Cursor label(Label l) {
+        return Cursor(this, labels_[l]);
+    }
 
     Cursor getCursor() {
-        return Cursor(this, entryPoint->front.next, entryPoint);
+        return Cursor(this, front.next);
     }
 
     Cursor getCursorAtEnd() {
-        return Cursor(this, &entryPoint->last, entryPoint);
+        return Cursor(this, & last);
     }
 
     CodeEditor(FunctionHandle function);
     CodeEditor(FunctionHandle function, fun_idx_t idx);
     CodeEditor(CodeHandle code);
 
-    void loadCode(FunctionHandle function, CodeHandle code, BCStore* store);
+    void loadCode(FunctionHandle function, CodeHandle code);
 
     ~CodeEditor();
 
@@ -234,7 +280,6 @@ class CodeEditor {
         return e;
     }
 
-    bool changed = false;
 };
 }
 

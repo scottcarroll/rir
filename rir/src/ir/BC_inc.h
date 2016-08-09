@@ -188,6 +188,7 @@ class BC {
     inline static BC extract1();
 
   private:
+
     BC(BC_t bc) : bc(bc), immediate({0}) {}
     BC(BC_t bc, immediate_t immediate) : bc(bc), immediate(immediate) {}
 
