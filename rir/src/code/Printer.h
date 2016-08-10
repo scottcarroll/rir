@@ -16,7 +16,6 @@ class Printer : public InstructionVisitor::Receiver, LinearDriver {
 public:
     Printer():
         dispatcher_(*this) {
-
     }
 
     void run(CodeEditor & code) {
