@@ -106,6 +106,8 @@ class CodeEditor {
 
         BC operator*() const { return pos->bc; }
 
+        BC const * operator->() const { return & pos->bc; }
+
         Cursor& operator<<(BC bc) {
             editor_->changed_ = true;
 

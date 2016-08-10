@@ -24,6 +24,11 @@ public:
 
         virtual void any(CodeEditor::Cursor ins) {
         }
+
+        virtual void label(CodeEditor::Cursor ins) {
+            any(ins);
+        }
+
 /* Virtual function for each instruction, all calling to any.
  */
 
@@ -46,7 +51,9 @@ protected:
  */
 #define DEF_INSTR(name, ...) case BC_t::name: receiver_.name(cursor); break;
 #include "ir/insns.h"
-
+            case BC_t::label:
+                receiver_.label(cursor);
+                break;
             default:
                 // dispatcher failure because of unknown instruction
                 fail();

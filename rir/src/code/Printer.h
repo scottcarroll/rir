@@ -49,6 +49,11 @@ protected:
         pc_ += bc.size();
     }
 
+    void label(CodeEditor::Cursor ins) override {
+        printOffset();
+        Rprintf("Label %i:\n", ins->immediate.offset);
+    }
+
 private:
 
     // TODO slow & ugly
