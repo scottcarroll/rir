@@ -516,12 +516,10 @@ protected:
                 break;
             case BC_t::brtrue_:
             case BC_t::brfalse_:
-                // TODO
-                assert(false and "not implemented");
+                receiver_.conditionalJump(cursor.editor().label(cur.immediate.offset));
                 break;
             case BC_t::br_:
-                // TODO
-                assert(false and "not implemented");
+                receiver_.unconditionalJump(cursor.editor().label(cur.immediate.offset));
                 break;
             default:
                 // dispatcher failure because of non-cf instruction
@@ -571,7 +569,20 @@ protected:
         initialState_(initialState) {
     }
 
+    /** Frees memory allocated by the driver after the run.
+
+      This deletes the current state (if any) and all mergepoints.
+     */
+    void free() {
+        assert (q_.empty() and "You are not supposed to call free() while the driver is active");
+        delete currentState_;
+        for (State * s : mergepoints_)
+            delete s;
+        mergepoints_.clear();
+    }
+
     void doRun(CodeEditor & code, Dispatcher & dispatcher) override {
+        free();
         q_.clear();
         q_.push_back(Item(code.getCursor(), initialState_->clone()));
         while (not q_.empty()) {
@@ -580,10 +591,7 @@ protected:
             CodeEditor::Cursor c = q_.front().cursor;
             State * incommingState = q_.front().state;
             q_.pop_front();
-            // check checkpoint and set current state
-            checkFixpoint(c, incommingState);
-
-
+            // no need to check fixpoint when we start the iteration - the first label instruction will do that for us
             while (not terminate_) {
                 // keep backup of the cursor for cf operations
                 CodeEditor::Cursor cx = c;
@@ -592,7 +600,8 @@ protected:
                 // dispatch based on control flow
                 dispatcher_.dispatch(cx);
             }
-
+            // deletes the current state so that we do not leak
+            delete currentState_;
         }
     }
 
@@ -610,11 +619,16 @@ protected:
     };
 
     void storeState(CodeEditor::Cursor const & c, State * state) {
-
+        BC ins = *c;
+        assert (ins.bc == BC_t::label);
+        assert (mergepoints_[ins.immediate.offset] == nullptr);
+        mergepoints_[ins.immediate.offset] = state;
     }
 
     State * storedState(CodeEditor::Cursor const & c) {
-        return nullptr;
+        BC ins = *c;
+        assert (ins.bc == BC_t::label);
+        return mergepoints_[ins.immediate.offset];
     }
 
     /** Terminates current execution.
@@ -655,6 +669,13 @@ private:
      */
     bool terminate_;
 
+
+    /** An array of stored states at mergepoits.
+
+      Note that we only store the beginning of the function as mergepoint if it also is a label instruction as otherwise there are no jumps to it, and therefore no merges.
+     */
+    std::vector<State *> mergepoints_;
+
 };
 
 /** Conditional labale queues the target cursor with clone of current state as incomming and continues the execution.
@@ -670,13 +691,15 @@ inline void ForwardDriver::CFReceiver::conditionalJump(CodeEditor::Cursor target
 inline void ForwardDriver::CFReceiver::unconditionalJump(CodeEditor::Cursor target) {
     driver_.q_.push_back(Item(target, driver_.currentState_));
     driver_.terminateCurrentExecution();
+    // because we continue with current state in the queue
+    driver_.currentState_ = nullptr;
 }
 
 /** When we see a terminator, just terminate the current execution.
  */
 inline void ForwardDriver::CFReceiver::termination(CodeEditor::Cursor const & at) {
     driver_.terminateCurrentExecution();
-    delete driver_.currentState_;
+    // current state will be deleted by the driver
 }
 
 /** A label is basically a fixpoint check.

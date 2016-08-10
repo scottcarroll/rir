@@ -52,15 +52,19 @@ class CodeEditor {
   public:
 
     class Cursor {
-        CodeEditor* editor;
+        CodeEditor* editor_;
         BytecodeList* pos;
 
       public:
         Cursor(CodeEditor* editor, BytecodeList* pos)
-            : editor(editor), pos(pos) {
+            : editor_(editor), pos(pos) {
         }
 
-        Label mkLabel() { return editor->nextLabel++; }
+        CodeEditor & editor() {
+            return *editor_;
+        }
+
+        Label mkLabel() { return editor_->nextLabel++; }
 
         bool atEnd() const { return pos->next == nullptr; }
 
@@ -93,22 +97,22 @@ class CodeEditor {
         /** The editor and range must be the same for comparison of cursors.
          */
         bool operator == (Cursor const & other) const {
-            return pos == other.pos and editor == other.editor;
+            return pos == other.pos and editor_ == other.editor_;
         }
 
         bool operator != (Cursor const & other) const {
-            return pos != other.pos or editor != other.editor;
+            return pos != other.pos or editor_ != other.editor_;
         }
 
-        BC operator*() { return pos->bc; }
+        BC operator*() const { return pos->bc; }
 
         Cursor& operator<<(BC bc) {
-            editor->changed_ = true;
+            editor_->changed_ = true;
 
             auto insert = new BytecodeList(bc);
             // if label is inserted, update the list of labels
             if (bc.bc == BC_t::label)
-                editor->setLabel(bc.immediate.offset, insert);
+                editor_->setLabel(bc.immediate.offset, insert);
 
             BytecodeList* prev = pos->prev;
             BytecodeList* next = pos;
@@ -128,27 +132,27 @@ class CodeEditor {
         SEXP ast() { return pos->src; }
 
         Cursor& operator<<(CodeEditor& other) {
-            editor->changed_ = true;
+            editor_->changed_ = true;
 
-            size_t labels = editor->nextLabel;
-            size_t proms = editor->promises.size();
+            size_t labels = editor_->nextLabel;
+            size_t proms = editor_->promises.size();
 
             std::unordered_map<fun_idx_t, fun_idx_t> duplicate;
 
             fun_idx_t j = 0;
             for (auto& p : other.promises) {
                 bool found = false;
-                for (fun_idx_t i = 0; i < editor->promises.size(); ++i) {
-                    if (p == editor->promises[i]) {
+                for (fun_idx_t i = 0; i < editor_->promises.size(); ++i) {
+                    if (p == editor_->promises[i]) {
                         duplicate[j] = i;
-                        editor->promises.push_back(nullptr);
+                        editor_->promises.push_back(nullptr);
                         found = true;
                         break;
                     }
                 }
                 if (!found) {
                     // We own the promise now
-                    editor->promises.push_back(p);
+                    editor_->promises.push_back(p);
                     p = nullptr;
                 }
                 j++;
@@ -163,7 +167,7 @@ class CodeEditor {
                 insert->src = cur.pos->src;
                 if (first) {
                     if (!insert->src)
-                        insert->src = cur.editor->ast;
+                        insert->src = cur.editor_->ast;
                     first = false;
                 }
 
@@ -184,7 +188,7 @@ class CodeEditor {
                 // Fix labels
                 if (insert->bc.bc == BC_t::label) {
                     insert->bc.immediate.offset += labels;
-                    editor->setLabel(insert->bc.immediate.offset, insert);
+                    editor_->setLabel(insert->bc.immediate.offset, insert);
                 }
                 // Adjust jmp targets
                 if (insert->bc.isJmp()) {
@@ -193,7 +197,7 @@ class CodeEditor {
 
                 ++cur;
             }
-            editor->nextLabel += other.nextLabel;
+            editor_->nextLabel += other.nextLabel;
 
             // TODO: that stinks, I know
             delete &other;
@@ -201,17 +205,17 @@ class CodeEditor {
         }
 
         void addAst(SEXP ast) {
-            editor->changed_ = true;
+            editor_->changed_ = true;
 
             assert(!pos->src);
             pos->src = ast;
         }
 
         void remove() {
-            editor->changed_ = true;
+            editor_->changed_ = true;
 
             assert(!atEnd());
-            assert(pos != & editor->front);
+            assert(pos != & editor_->front);
 
             BytecodeList* prev = pos->prev;
             BytecodeList* next = pos->next;
@@ -223,7 +227,7 @@ class CodeEditor {
             pos = next;
         }
 
-        bool empty() const { return editor->empty(); }
+        bool empty() const { return editor_->empty(); }
 
         void print();
     };
