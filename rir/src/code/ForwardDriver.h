@@ -29,9 +29,9 @@ protected:
 
         void unconditionalJump(CodeEditor::Cursor target) override;
 
-        void termination(CodeEditor::Cursor const & at) override;
+        void termination(CodeEditor::Cursor at) override;
 
-        void label(CodeEditor::Cursor const & at) override;
+        void label(CodeEditor::Cursor at) override;
 
     private:
         // a bit wasteful, but safe. Another option would be to make the forward driver itself implement the ControlFlow::Receiver interface, but that would mean the ControlFlow receiver would be disabled from future considerations.
@@ -172,14 +172,14 @@ inline void ForwardDriver::CFReceiver::unconditionalJump(CodeEditor::Cursor targ
 
 /** When we see a terminator, just terminate the current execution.
  */
-inline void ForwardDriver::CFReceiver::termination(CodeEditor::Cursor const & at) {
+inline void ForwardDriver::CFReceiver::termination(CodeEditor::Cursor at) {
     driver_.terminateCurrentExecution();
     // current state will be deleted by the driver
 }
 
 /** A label is basically a fixpoint check.
  */
-inline void ForwardDriver::CFReceiver::label(CodeEditor::Cursor const & at) {
+inline void ForwardDriver::CFReceiver::label(CodeEditor::Cursor at) {
     driver_.checkFixpoint(at, driver_.currentState_);
 }
 

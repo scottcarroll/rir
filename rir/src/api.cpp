@@ -14,6 +14,7 @@
 #include "utils/FunctionHandle.h"
 
 #include "code/Printer.h"
+#include "code/ForwardDriver.h"
 
 using namespace rir;
 
