@@ -22,12 +22,12 @@ public:
     protected:
         friend class InstructionVisitor;
 
-        virtual void any(CodeEditor::Cursor & ins) {
+        virtual void any(CodeEditor::Cursor ins) {
         }
 /* Virtual function for each instruction, all calling to any.
  */
 
-#define DEF_INSTR(name, ...) virtual void name(CodeEditor::Cursor & ins) { any(ins); }
+#define DEF_INSTR(name, ...) virtual void name(CodeEditor::Cursor ins) { any(ins); }
 #include "ir/insns.h"
 
     };

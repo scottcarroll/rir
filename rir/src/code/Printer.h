@@ -36,7 +36,7 @@ protected:
 
     /** Some silly printer stuff.
      */
-    void any(CodeEditor::Cursor & ins) override {
+    void any(CodeEditor::Cursor ins) override {
         if (ins.hasAst()) {
             printOffset();
             Rprintf("          # ");

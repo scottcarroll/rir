@@ -23,9 +23,9 @@ public:
 
         virtual void unconditionalJump(CodeEditor::Cursor target) = 0;
 
-        virtual void termination(CodeEditor::Cursor const & at) = 0;
+        virtual void termination(CodeEditor::Cursor at) = 0;
 
-        virtual void label(CodeEditor::Cursor const & at) = 0;
+        virtual void label(CodeEditor::Cursor at) = 0;
     };
 
     ControlFlowDispatcher(Receiver & receiver):
