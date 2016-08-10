@@ -278,6 +278,15 @@ class CodeEditor {
 
     void print();
 
+    size_t numPromises() const {
+        return promises.size();
+    }
+
+    CodeEditor & promise(size_t index) {
+        assert(index < promises.size());
+        return * promises[index];
+    }
+
     CodeEditor* detachPromise(fun_idx_t idx) {
         CodeEditor* e = promises[idx];
         promises[idx] = nullptr;

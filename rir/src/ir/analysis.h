@@ -180,128 +180,14 @@ public:
     protected:
         friend class InstructionVisitor;
 
-        virtual void any(BC ins) {
+        virtual void any(CodeEditor::Cursor & ins) {
         }
+/* Virtual function for each instruction, all calling to any.
+ */
 
-        virtual void push(BC ins) {
-            any(ins);
-        }
+#define DEF_INSTR(name, ...) virtual void name(CodeEditor::Cursor & ins) { any(ins); }
+#include "insns.h"
 
-        virtual void ldfun(BC ins) {
-            any(ins);
-        }
-
-        virtual void ldddvar(BC ins) {
-            any(ins);
-        }
-
-        virtual void ldvar(BC ins) {
-            any(ins);
-        }
-
-        virtual void call(BC ins) {
-            any(ins);
-        }
-
-        virtual void promise(BC ins) {
-            any(ins);
-        }
-
-        virtual void close(BC ins) {
-            any(ins);
-        }
-
-        virtual void ret(BC ins) {
-            any(ins);
-        }
-
-        virtual void force(BC ins) {
-            any(ins);
-        }
-
-        virtual void pop(BC ins) {
-            any(ins);
-        }
-
-        virtual void pusharg(BC ins) {
-            any(ins);
-        }
-
-        virtual void asast(BC ins) {
-            any(ins);
-        }
-
-        virtual void stvar(BC ins) {
-            any(ins);
-        }
-
-        virtual void asbool(BC ins) {
-            any(ins);
-        }
-
-        virtual void brtrue(BC ins) {
-            any(ins);
-        }
-
-        virtual void brfalse(BC ins) {
-            any(ins);
-        }
-
-        virtual void br(BC ins) {
-            any(ins);
-        }
-
-        virtual void invisible(BC ins) {
-            any(ins);
-        }
-
-        virtual void lti(BC ins) {
-            any(ins);
-        }
-
-        virtual void eqi(BC ins) {
-            any(ins);
-        }
-
-        virtual void pushi(BC ins) {
-            any(ins);
-        }
-
-        virtual void dupi(BC ins) {
-            any(ins);
-        }
-
-        virtual void dup(BC ins) {
-            any(ins);
-        }
-
-        virtual void add(BC ins) {
-            any(ins);
-        }
-
-        virtual void sub(BC ins) {
-            any(ins);
-        }
-
-        virtual void lt(BC ins) {
-            any(ins);
-        }
-
-        virtual void isspecial(BC ins) {
-            any(ins);
-        }
-
-        virtual void isfun(BC ins) {
-            any(ins);
-        }
-
-        virtual void inci(BC ins) {
-            any(ins);
-        }
-
-        virtual void push_argi(BC ins) {
-            any(ins);
-        }
     };
 
     InstructionVisitor(Receiver & receiver):
@@ -313,93 +199,12 @@ protected:
     void doDispatch(CodeEditor::Cursor & cursor) override {
         BC cur = *cursor;
         switch (cur.bc) {
-            case BC_t::push_:
-                receiver_.push(cur);
-                break;
-            case BC_t::ldfun_:
-                receiver_.ldfun(cur);
-                break;
-            case BC_t::ldddvar_:
-                receiver_.ldddvar(cur);
-                break;
-            case BC_t::ldvar_:
-                receiver_.ldvar(cur);
-                break;
-            case BC_t::call_:
-                receiver_.call(cur);
-                break;
-            case BC_t::promise_:
-                receiver_.promise(cur);
-                break;
-            case BC_t::close_:
-                receiver_.close(cur);
-                break;
-            case BC_t::ret_:
-                receiver_.ret(cur);
-                break;
-            case BC_t::force_:
-                receiver_.force(cur);
-                break;
-            case BC_t::pop_:
-                receiver_.pop(cur);
-                break;
-            case BC_t::pusharg_:
-                receiver_.pusharg(cur);
-                break;
-            case BC_t::asast_:
-                receiver_.asast(cur);
-                break;
-            case BC_t::stvar_:
-                receiver_.stvar(cur);
-                break;
-            case BC_t::asbool_:
-                receiver_.asbool(cur);
-                break;
-            case BC_t::brtrue_:
-                receiver_.brtrue(cur);
-                break;
-            case BC_t::brfalse_:
-                receiver_.brfalse(cur);
-                break;
-            case BC_t::br_:
-                receiver_.br(cur);
-                break;
-            case BC_t::invisible_:
-                receiver_.invisible(cur);
-                break;
-            case BC_t::lti_:
-                receiver_.lti(cur);
-                break;
-            case BC_t::eqi_:
-                receiver_.eqi(cur);
-                break;
-            case BC_t::pushi_:
-                receiver_.pushi(cur);
-                break;
-            case BC_t::dupi_:
-                receiver_.dupi(cur);
-                break;
-            case BC_t::dup_:
-                receiver_.dup(cur);
-                break;
-            case BC_t::add_:
-                receiver_.add(cur);
-                break;
-            case BC_t::sub_:
-                receiver_.sub(cur);
-                break;
-            case BC_t::lt_:
-                receiver_.lt(cur);
-                break;
-            case BC_t::isspecial_:
-                receiver_.isspecial(cur);
-                break;
-            case BC_t::inci_:
-                receiver_.inci(cur);
-                break;
-            case BC_t::push_argi_:
-                receiver_.push_argi(cur);
-                break;
+
+/* Dispatch on instruction types for all instructions.
+ */
+#define DEF_INSTR(name, ...) case BC_t::name: receiver_.name(cursor); break;
+#include "insns.h"
+
             default:
                 // dispatcher failure because of unknown instruction
                 fail();
@@ -730,32 +535,44 @@ public:
     void run(CodeEditor & code) {
         pc_ = 0;
         doRun(code, dispatcher_);
+        for (size_t i = 0, e = code.numPromises(); i != e; ++i) {
+            Rprintf("\n");
+            printOffset();
+            Rprintf("promise %i:\n", i);
+            offset_ += 4;
+            run(code.promise(i));
+            offset_ -= 4;
+        }
     }
 
 protected:
 
     /** Some silly printer stuff
      */
-    void any(BC ins) override {
-        std::cout << pc_ << std::endl;
-        // TODO print the size and so on
-        pc_ += ins.size();
+    void any(CodeEditor::Cursor & ins) override {
+        if (ins.hasAst()) {
+            printOffset();
+            Rprintf("          # ");
+            Rf_PrintValue(ins.ast());
+        }
+        printOffset();
+        Rprintf(" %5x ", pc_);
+        BC bc = *ins;
+        bc.print();
+        pc_ += bc.size();
     }
-
-    void ldvar(BC ins) override {
-        any(ins);
-        std::cout << "ldvar" << std::endl;
-    }
-
-    void ldfun(BC ins) override {
-        any(ins);
-        std::cout << "ldfun" << std::endl;
-    }
-
 
 private:
+
+    // TODO slow & ugly
+    void printOffset() {
+        for (size_t i = 0; i != offset_; ++i)
+            Rprintf(" ");
+    }
+
     InstructionVisitor dispatcher_;
     size_t pc_ = 0;
+    size_t offset_ = 0;
 };
 
 }
