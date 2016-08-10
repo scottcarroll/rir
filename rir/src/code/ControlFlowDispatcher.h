@@ -54,8 +54,6 @@ protected:
                 // dispatcher failure because of non-cf instruction
                 fail();
         }
-        // let's advance the cursor so that the dispatcher is generally useful
-        ++cursor;
     }
 
 private:

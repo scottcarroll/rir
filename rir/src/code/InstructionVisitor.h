@@ -51,8 +51,6 @@ protected:
                 // dispatcher failure because of unknown instruction
                 fail();
         }
-        // move to the next instruction
-        ++cursor;
     }
 
 private:

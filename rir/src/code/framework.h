@@ -15,13 +15,14 @@ namespace rir {
   2) how far should the cursor advance
 
   The receiver is not part of the Dispatcher class because it heavily depends on the dispatch method used and would therefore require the use of templates.
+
  */
 class Dispatcher {
 public:
     virtual ~Dispatcher() {
     }
 
-    /** Dispatches on the given cursor, advances the cursor and returns true if the dispatch was successful, false if not.
+    /** Dispatches on the given cursor, and returns true if the dispatch was successful, false if not.
 
       TODO perhaps the dispatch success is overkill.
      */
@@ -52,6 +53,10 @@ protected:
 };
 
 /** The driver defines the pattern of which instructions and when will the dispatcher see.
+
+  Paired with a dispatcher that performs the dispatch to receiver methods, the driver is responsible for advancing the cursor according to the driving implementation (i.e. linear, forward analysis, etc. ).
+
+  The very non-restrictive API of dispatchers and drivers is by design and not every possible combination of dispatcher and driver is expected to work.
  */
 class Driver {
 public:
@@ -62,19 +67,12 @@ public:
     virtual void run(CodeEditor & code) = 0;
 
 protected:
-
-    Driver() = default;
-
     /** The actual driver method.
 
       Should be overriden in each driver type and called from the run() method.
      */
     virtual void doRun(CodeEditor & code, Dispatcher & dispatcher) = 0;
-
 };
-
-
-
 
 }
 #endif

@@ -87,12 +87,12 @@ protected:
             q_.pop_front();
             // no need to check fixpoint when we start the iteration - the first label instruction will do that for us
             while (not terminate_) {
-                // keep backup of the cursor for cf operations
-                CodeEditor::Cursor cx = c;
                 // dispatch proper
                 dispatcher.dispatch(c);
                 // dispatch based on control flow
-                dispatcher_.dispatch(cx);
+                dispatcher_.dispatch(c);
+                // move the cursor
+                ++c;
             }
             // deletes the current state so that we do not leak
             delete currentState_;
