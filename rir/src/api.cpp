@@ -13,7 +13,7 @@
 
 #include "utils/FunctionHandle.h"
 
-#include "ir/analysis.h"
+#include "code/Printer.h"
 
 using namespace rir;
 
