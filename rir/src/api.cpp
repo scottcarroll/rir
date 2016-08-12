@@ -15,6 +15,7 @@
 
 #include "code/Printer.h"
 #include "code/ForwardDriver.h"
+#include "code/analysis.h"
 
 using namespace rir;
 

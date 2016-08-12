@@ -56,11 +56,20 @@ class CodeEditor {
         BytecodeList* pos;
 
       public:
+        Cursor():
+            editor_(nullptr),
+            pos(nullptr) {
+        }
+
         Cursor(CodeEditor* editor, BytecodeList* pos)
             : editor_(editor), pos(pos) {
         }
 
         CodeEditor & editor() {
+            return *editor_;
+        }
+
+        CodeEditor const & editor() const {
             return *editor_;
         }
 
@@ -242,12 +251,13 @@ class CodeEditor {
         return changed_;
     }
 
-    Cursor begin() {
-        return Cursor(this, front.next);
+    Cursor begin() const {
+        return Cursor(const_cast<CodeEditor*>(this), front.next);
     }
 
-    Cursor end() {
-        return Cursor(this, & last);
+    // TODO the cursors should have better const-ness,
+    Cursor end() const {
+        return Cursor(const_cast<CodeEditor*>(this), & const_cast<BytecodeList &>(last));
     }
 
     /** Returns cursor to given label (the label instruction).

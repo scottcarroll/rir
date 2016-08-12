@@ -3,7 +3,7 @@
 
 #include "framework.h"
 #include "ControlFlowDispatcher.h"
-#include "State.h"
+#include "state.h"
 
 namespace rir {
 
@@ -48,7 +48,7 @@ protected:
 
       This deletes the current state (if any) and all mergepoints.
      */
-    void free() {
+    void cleanup() {
         assert (q_.empty() and "You are not supposed to call free() while the driver is active");
         delete currentState_;
         for (State * s : mergepoints_)
@@ -57,7 +57,7 @@ protected:
     }
 
     void doRun(CodeEditor & code, Dispatcher & dispatcher) override {
-        free();
+        cleanup();
         q_.clear();
         q_.push_back(Item(code.getCursor(), initialState_->clone()));
         while (not q_.empty()) {
@@ -80,6 +80,11 @@ protected:
         }
     }
 
+    virtual ~ForwardDriver() {
+        cleanup();
+        delete initialState_;
+    }
+
 protected:
 
     friend class CFReceiver;
@@ -100,7 +105,7 @@ protected:
         mergepoints_[ins.immediate.offset] = state;
     }
 
-    State * storedState(CodeEditor::Cursor const & c) {
+    State * storedState(CodeEditor::Cursor const & c) const {
         BC ins = *c;
         assert (ins.bc == BC_t::label);
         return mergepoints_[ins.immediate.offset];
@@ -131,14 +136,18 @@ protected:
         }
     }
 
+protected:
+    /** Used in analyses for retrieval caching. */
+    mutable State * currentState_;
+    State * initialState_;
+
+
 private:
 
     CFReceiver receiver_;
     ControlFlowDispatcher dispatcher_;
 
     std::deque<Item> q_;
-    State * initialState_;
-    State * currentState_;
 
     /** If true, terminates the execution of current queue path.
      */

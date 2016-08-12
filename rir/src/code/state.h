@@ -32,10 +32,14 @@ public:
 
 
 
-
+/** This is what we want from AVALUE
+ */
 class AVALUE {
 
 public:
+    AVALUE() = delete;
+
+    AVALUE(AVALUE const &) = default;
 
     static AVALUE const bottom;
     static AVALUE const top;
@@ -153,7 +157,8 @@ public:
             auto own = env_.find(i->first);
             if (own == env_.end()) {
                 // if there is a variable in other that is not in us, just copy it and mark as changed
-                env_[i->first] = i->second;
+                env_.insert(*i);
+                //env_[i->first] = i->second;
                 result = true;
             } else {
                 // otherwise try merging it with our variable
@@ -195,8 +200,10 @@ public:
     AVALUE & operator[](SEXP name) {
         auto i = env_.find(name);
         if (i == env_.end()) {
-            env_[name] = AVALUE::bottom;
-            return env_[name];
+            // so that we do not demand default constructor on values
+            env_.insert(std::pair<SEXP, AVALUE>(name, AVALUE::bottom));
+            i = env_.find(name);
+            return i->second;
         } else {
             return i->second;
         }

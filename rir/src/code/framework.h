@@ -60,12 +60,6 @@ protected:
  */
 class Driver {
 public:
-    /** Runs the driver on given code object.
-
-      This is the public API and should be redefined in the final driver, when the main dispatcher becomes known.
-     */
-    virtual void run(CodeEditor & code) = 0;
-
 protected:
     /** The actual driver method.
 
