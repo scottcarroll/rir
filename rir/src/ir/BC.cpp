@@ -77,7 +77,7 @@ void BC::write(CodeStream& cs) const {
     }
 }
 
-SEXP BC::immediateConst() { return Pool::get(immediate.pool); }
+SEXP BC::immediateConst() const { return Pool::get(immediate.pool); }
 fun_idx_t* BC::immediateCallArgs() {
     SEXP c = Pool::get(immediate.call_args.args);
     assert(TYPEOF(c) == INTSXP);

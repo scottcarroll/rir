@@ -49,6 +49,9 @@ public:
         return false;
     }
 
+    // for nice printing
+    void print();
+
 
 };
 
@@ -152,6 +155,17 @@ public:
         return stack_[idx];
     }
 
+    /** Prettyprints the stack.
+     */
+    void print() {
+        Rprintf("Stack depth: %i\n", stack_.size());
+        for (size_t i = 0; i < stack_.size(); ++i) {
+            Rprintf("  %i : ", i);
+            stack_[i].print();
+            Rprintf("\n");
+        }
+    }
+
 protected:
     std::deque<AVALUE> stack_;
 };
@@ -231,6 +245,21 @@ public:
         return env_.find(name) != env_.end();
     }
 
+    /** Simulates looking for a variable.
+
+      If the variable is found in current environment, it is returned. If not, then parent environments are searched and only if the variable is not found anywhere in them, top value is returned.
+     */
+    AVALUE const & find(SEXP name) const {
+        auto i = env_.find(name);
+        if (i == env_.end())
+            if (parent_ != nullptr)
+                return parent_->find(name);
+            else
+                return AVALUE::top;
+        else
+            return i->second;
+    }
+
     AVALUE const & operator[](SEXP name) const {
         auto i = env_.find(name);
         if (i == env_.end())
@@ -260,8 +289,20 @@ public:
         return * parent_;
     }
 
-
-    // TODO implement find to look through parent environmets as well?
+    void print() {
+        Rprintf("Environment: ");
+        for (auto i : env_) {
+            Rprintf("    %s : ", CHAR(PRINTNAME(i->first)));
+            i->second.print();
+            Rprintf("\n");
+        }
+        if (parent_ != nullptr) {
+            Rprintf("Parent :\n");
+            parent_->print();
+        } else {
+            Rprintf("No parent");
+        }
+    }
 
 protected:
 

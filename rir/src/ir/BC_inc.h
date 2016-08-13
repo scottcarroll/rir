@@ -113,11 +113,11 @@ class BC {
     BC_t bc;
     immediate_t immediate;
 
-    inline size_t size() { return size(bc); }
-    inline size_t popCount() { return popCount(bc); }
-    inline size_t pushCount() { return pushCount(bc); }
-    inline size_t iPopCount() { return iPopCount(bc); }
-    inline size_t iPushCount() { return iPushCount(bc); }
+    inline size_t size() const { return size(bc); }
+    inline size_t popCount() const { return popCount(bc); }
+    inline size_t pushCount() const { return pushCount(bc); }
+    inline size_t iPopCount() const { return iPopCount(bc); }
+    inline size_t iPushCount() const { return iPushCount(bc); }
 
     // Used to serialize bc to CodeStream
     void write(CodeStream& cs) const;
@@ -126,7 +126,7 @@ class BC {
     void print();
 
     // Accessors to load immediate constant from the pool
-    SEXP immediateConst();
+    SEXP immediateConst() const;
     fun_idx_t* immediateCallArgs();
     num_args_t immediateCallNargs();
     SEXP immediateCallNames();

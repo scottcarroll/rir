@@ -3,6 +3,7 @@
 
 #include "code/analysis.h"
 #include "code/InstructionVisitor.h"
+#include "interpreter/interp_context.h"
 
 namespace rir {
 
@@ -51,11 +52,21 @@ class CP_Value {
         return true;
     }
 
+    void print() {
+        if (value_ == top_)
+            Rprintf("T");
+        else if (value_ == bottom_)
+            Rprintf("B");
+        else
+            Rf_PrintValue(value_);
+    }
+
   protected:
     constexpr static SEXP const bottom_ = nullptr;
     constexpr static SEXP const top_ = (SEXP)(1);
 
     SEXP value_;
+
 };
 
 class ConstantPropagation : public ForwardAnalysis<AbstractState<CP_Value>>,
@@ -73,6 +84,28 @@ class ConstantPropagation : public ForwardAnalysis<AbstractState<CP_Value>>,
         setInitialState(new AbstractState<CP_Value>());
         ForwardAnalysis::doAnalyze(code);
     }
+
+    void push_(CodeEditor::Cursor ins) override {
+        current().push(ins->immediateConst());
+    }
+
+    void ldvar_(CodeEditor::Cursor ins) override {
+        current().push(current().env().find(ins->immediateConst()));
+    }
+
+    void stvar_(CodeEditor::Cursor ins) override {
+        current()[ins->immediateConst()] = current().pop();
+    }
+
+    /** All other instructions, don't care for now.
+     */
+    void any(CodeEditor::Cursor ins) override {
+        // pop as many as we need, push as many tops as we need
+        current().pop(ins->popCount());
+        for (size_t i = 0, e = ins->pushCount(); i != e; ++i)
+            current().push(Value::top);
+    }
+
 };
 }
 #endif
