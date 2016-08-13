@@ -38,25 +38,34 @@ protected:
         ForwardDriver & driver_;
     };
 
-    ForwardDriver(State * initialState):
-        receiver_(*this),
-        dispatcher_(receiver_),
-        initialState_(initialState) {
+    ForwardDriver()
+        : receiver_(*this), dispatcher_(receiver_), initialState_(nullptr) {}
+
+    virtual ~ForwardDriver() {
+        cleanup();
+        delete initialState_;
     }
 
     /** Frees memory allocated by the driver after the run.
 
-      This deletes the current state (if any) and all mergepoints.
+      This deletes the current state (if any) and all mergepoints as well as the
+      initial state, if any.
      */
     void cleanup() {
         assert (q_.empty() and "You are not supposed to call free() while the driver is active");
         delete currentState_;
+        currentState_ = nullptr;
         for (State * s : mergepoints_)
             delete s;
         mergepoints_.clear();
+        delete initialState_;
+        initialState_ = nullptr;
     }
 
     void doRun(CodeEditor & code, Dispatcher & dispatcher) override {
+        assert(initialState_ != nullptr and "Initial state must be specified "
+                                            "before running the forward "
+                                            "driver");
         cleanup();
         q_.clear();
         q_.push_back(Item(code.getCursor(), initialState_->clone()));
@@ -80,12 +89,11 @@ protected:
         }
     }
 
-    virtual ~ForwardDriver() {
-        cleanup();
+  protected:
+    void setInitialState(State* state) {
         delete initialState_;
+        initialState_ = state;
     }
-
-protected:
 
     friend class CFReceiver;
 

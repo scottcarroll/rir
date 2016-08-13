@@ -4,6 +4,7 @@
 #include <map>
 #include <deque>
 #include <cassert>
+#include <type_traits>
 
 #include "R/r.h"
 
@@ -51,14 +52,44 @@ public:
 
 };
 
+/** An ugly SFINAE template that statically checks that values used in states
+  have mergeWith method.
 
+  This is not necessary but produces nice non-templatish messages if you forget
+  to create the method.
+   */
+template <typename T>
+class has_mergeWith {
+    typedef char one;
+    typedef long two;
+
+    template <typename C>
+    static one test(char (*)[sizeof(&C::mergeWith)]);
+    template <typename C>
+    static two test(...);
+
+  public:
+    enum { value = sizeof(test<T>(0)) == sizeof(char) };
+};
 
 /** Stack model.
 
   Model of an abstract stack is relatively easy - since for correct code, stack depth at any mergepoints must be constant, so stack merging is only a merge of the stack's values.
  */
+template <typename AVALUE>
 class AbstractStack : public State {
+    static_assert(std::is_copy_constructible<AVALUE>::value,
+                  "Abstract values must be copy constructible");
+    static_assert(has_mergeWith<AVALUE>::value,
+                  "Abstract values must have mergeWith method");
+    static_assert(std::is_const<decltype(AVALUE::top)>::value,
+                  "Must have const top");
+    static_assert(std::is_const<decltype(AVALUE::top)>::value,
+                  "Must have const bottom");
+
 public:
+  typedef AVALUE Value;
+
     AbstractStack() = default;
     AbstractStack(AbstractStack const &) = default;
 
@@ -125,9 +156,20 @@ protected:
     std::deque<AVALUE> stack_;
 };
 
-
+template <typename AVALUE>
 class AbstractEnvironment : public State {
+    static_assert(std::is_copy_constructible<AVALUE>::value,
+                  "Abstract values must be copy constructible");
+    static_assert(has_mergeWith<AVALUE>::value,
+                  "Abstract values must have mergeWith method");
+    static_assert(std::is_const<decltype(AVALUE::top)>::value,
+                  "Must have const top");
+    static_assert(std::is_const<decltype(AVALUE::top)>::value,
+                  "Must have const bottom");
+
 public:
+  typedef AVALUE Value;
+
     AbstractEnvironment():
         parent_(nullptr) {
     }
@@ -232,9 +274,11 @@ protected:
 
 /** This could be done with multiple virtual inheritance, but the composition is simpler, and perhaps even cleaner, albeit more lengthy.
  */
-
+template <typename AVALUE>
 class AbstractState : public State {
 public:
+  typedef AVALUE Value;
+
     AbstractState() = default;
     AbstractState(AbstractState const &) = default;
 
@@ -247,21 +291,13 @@ public:
         return mergeWith(*dynamic_cast<AbstractState const *>(other));
     }
 
-    AbstractStack const & stack() const {
-        return stack_;
-    }
+    AbstractStack<AVALUE> const& stack() const { return stack_; }
 
-    AbstractStack & stack() {
-        return stack_;
-    }
+    AbstractStack<AVALUE>& stack() { return stack_; }
 
-    AbstractEnvironment const & env() const {
-        return env_;
-    }
+    AbstractEnvironment<AVALUE> const& env() const { return env_; }
 
-    AbstractEnvironment & env() {
-        return env_;
-    }
+    AbstractEnvironment<AVALUE>& env() { return env_; }
 
     bool mergeWith(AbstractState const & other) {
         bool result = false;
@@ -299,8 +335,8 @@ public:
     }
 
 protected:
-    AbstractStack stack_;
-    AbstractEnvironment env_;
+  AbstractStack<AVALUE> stack_;
+  AbstractEnvironment<AVALUE> env_;
 };
 
 

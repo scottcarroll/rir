@@ -20,6 +20,7 @@ typedef State ASTATE;
 
 
  */
+template <typename ASTATE>
 class Analysis {
 public:
 
@@ -35,7 +36,6 @@ public:
     virtual void invalidate() {
         editor_ = nullptr;
     }
-
 
     /** An analysis is valid when its editor is not null.
      */
@@ -66,11 +66,11 @@ protected:
     CodeEditor const * editor_ = nullptr;
 };
 
-
-class ForwardAnalysis : public Analysis, ForwardDriver {
+template <typename ASTATE>
+class ForwardAnalysis : public Analysis<ASTATE>, public ForwardDriver {
 public:
     void invalidate() override {
-        Analysis::invalidate();
+        Analysis<ASTATE>::invalidate();
         cleanup();
         delete currentState_;
         currentState_ = nullptr;
@@ -79,29 +79,39 @@ public:
 
 
 protected:
+  using Analysis<ASTATE>::editor_;
 
-    ForwardAnalysis(Dispatcher & dispatcher, ASTATE * initialState):
-        ForwardDriver(initialState),
-        dispatcher_(dispatcher) {
-    }
+  ASTATE& current() {
+      // TODO this can look better if ForwardDriver is also templated
+      return *reinterpret_cast<ASTATE*>(currentState_);
+  }
+
+  ASTATE const& current() const {
+      // TODO this can look better if ForwardDriver is also templated
+      return *reinterpret_cast<ASTATE*>(currentState_);
+  }
+
+  ForwardAnalysis() : ForwardDriver(), dispatcher_(nullptr) {}
 
     /** The analysis just runs the forward driver on the given code with the dispatcher.
      */
     void doAnalyze(CodeEditor & code) override {
-        doRun(code, dispatcher_);
+        assert(dispatcher_ != nullptr);
+        doRun(code, *dispatcher_);
         // prepare the cache for retrieval
         initializeCache();
     }
 
-    ASTATE const & stateFor(CodeEditor::Cursor const & ins) const {
+    ASTATE const& stateFor(CodeEditor::Cursor const& ins) const override {
         // if the cached result is not the one we want, seek to it
         if (ins != cached_)
             seek(ins);
-        return * currentState_;
+        return current();
     }
 
     void advance() const {
-        dispatcher_.dispatch(cached_);
+        assert(dispatcher_ != nullptr);
+        dispatcher_->dispatch(cached_);
         ++cached_;
         // if the cached instruction is label, dispose of the state and create a copy of the fixpoint
         if (cached_->bc == BC_t::label) {
@@ -135,7 +145,7 @@ protected:
     }
 
     /** The dispatcher used in the analysis, which will then be reused in the retrieval phase. */
-    Dispatcher & dispatcher_;
+    Dispatcher* dispatcher_;
 
     /** Cursor used for the state retrieval. */
     mutable CodeEditor::Cursor cached_;

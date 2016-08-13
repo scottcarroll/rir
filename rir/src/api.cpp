@@ -17,6 +17,8 @@
 #include "code/ForwardDriver.h"
 #include "code/analysis.h"
 
+#include "optimizer/cp.h"
+
 using namespace rir;
 
 extern "C" void resetCompileExpressionOverride();
@@ -38,6 +40,9 @@ REXPORT SEXP rir_da(SEXP what) {
     CodeEditor ce(fun);
     Printer p;
     p.run(ce);
+
+    ConstantPropagation cp;
+
     return R_NilValue;
 }
 
