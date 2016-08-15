@@ -38,8 +38,12 @@ protected:
         ForwardDriver & driver_;
     };
 
-    ForwardDriver()
-        : receiver_(*this), dispatcher_(receiver_), initialState_(nullptr) {}
+    ForwardDriver() :
+        receiver_(*this),
+        dispatcher_(receiver_),
+        initialState_(nullptr),
+        currentState_(nullptr) {
+    }
 
     virtual ~ForwardDriver() {
         cleanup();
@@ -58,8 +62,6 @@ protected:
         for (State * s : mergepoints_)
             delete s;
         mergepoints_.clear();
-        delete initialState_;
-        initialState_ = nullptr;
     }
 
     void doRun(CodeEditor & code, Dispatcher & dispatcher) override {
@@ -73,7 +75,7 @@ protected:
             terminate_ = false;
             // get stuff from the queue
             CodeEditor::Cursor c = q_.front().cursor;
-            State * incommingState = q_.front().state;
+            currentState_ = q_.front().state;
             q_.pop_front();
             // no need to check fixpoint when we start the iteration - the first label instruction will do that for us
             while (not terminate_) {
@@ -86,6 +88,7 @@ protected:
             }
             // deletes the current state so that we do not leak
             delete currentState_;
+            currentState_ = nullptr;
         }
     }
 

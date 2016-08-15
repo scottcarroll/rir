@@ -27,8 +27,8 @@ public:
 
     // I'd like the const here
     void analyze(CodeEditor & code) {
-        doAnalyze(code);
         editor_ = & code;
+        doAnalyze(code);
     }
 
     /** Invalidates the analysis results. Descendants should override this and add any cleanup if necessary.

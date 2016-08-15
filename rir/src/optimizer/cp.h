@@ -79,6 +79,12 @@ class ConstantPropagation : public ForwardAnalysis<AbstractState<CP_Value>>,
 
     ~ConstantPropagation() { delete dispatcher_; }
 
+    void invalidate() override {
+        ForwardAnalysis::invalidate();
+        delete initialState_;
+        initialState_ = nullptr;
+    }
+
   protected:
     void doAnalyze(CodeEditor& code) override {
         setInitialState(new AbstractState<CP_Value>());
