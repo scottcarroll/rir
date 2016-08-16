@@ -80,18 +80,13 @@ void CodeEditor::loadCode(FunctionHandle function, CodeHandle code) {
                     if (argOffset[i] > MAX_ARG_IDX)
                         continue;
 
+                    // TODO this assumes that a promise can only be used once
                     CodeHandle code = function.codeAtOffset(argOffset[i]);
-                    argOffset[i] = code.idx();
-
                     CodeEditor* p = new CodeEditor(function, code.idx());
-
-                    if (promises.size() <= code.idx())
-                        promises.resize(code.idx() + 1, nullptr);
-
-                    promises[code.idx()] = p;
+                    argOffset[i] = promises.size();
+                    promises.push_back(p);
                 }
             }
-
             pos->bc = bc;
         }
 

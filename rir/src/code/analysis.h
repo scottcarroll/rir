@@ -52,6 +52,16 @@ public:
      */
     ASTATE & operator [] (CodeEditor::Cursor const & ins) = delete;
 
+
+    /** Debug print of the cached analysis state.
+     */
+    void print() {
+        if (not isValid()) {
+            Rprintf("NOT VALID");
+            return;
+        }
+    }
+
 protected:
 
     /** Provide implementation for the code that actually does the analysis.

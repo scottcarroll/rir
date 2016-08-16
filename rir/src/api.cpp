@@ -43,6 +43,7 @@ REXPORT SEXP rir_da(SEXP what) {
 
     ConstantPropagation cp;
     cp.analyze(ce);
+    cp.print();
 
 
     return R_NilValue;
