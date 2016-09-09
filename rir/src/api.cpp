@@ -13,6 +13,9 @@
 
 #include "utils/FunctionHandle.h"
 
+#include "code/environment_implementation.h"
+
+
 using namespace rir;
 
 extern "C" void resetCompileExpressionOverride();
