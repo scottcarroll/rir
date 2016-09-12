@@ -38,6 +38,11 @@ class CodeEditor {
 
   public:
     class Cursor {
+
+        CodeEditor & editorX() {
+            return &editor;
+        }
+
         CodeEditor* editor;
         BytecodeList* pos;
         BytecodeList* begin;
@@ -64,7 +69,16 @@ class CodeEditor {
             pos = pos->prev;
         }
 
+        /** Deprecated */
         BC operator*() { return pos->bc; }
+
+        /** Getter for the BC object the cursor points to.
+
+          (this is because the iterator interface is deprecated)
+         */
+        BC bc() const {
+            return pos->bc;
+        }
 
         Cursor& operator<<(BC bc) {
             editor->changed = true;
@@ -226,6 +240,18 @@ class CodeEditor {
         CodeEditor* e = promises[idx];
         promises[idx] = nullptr;
         return e;
+    }
+
+    /** Returns cursor that points to given label.
+     */
+    Cursor label(size_t index) {
+        throw "NOT_IMPLEMENTED";
+    }
+
+    /** Returns number of labels in the code.
+     */
+    size_t numLabels() const {
+        throw "NOT_IMPLEMENTED";
     }
 
     bool changed = false;
