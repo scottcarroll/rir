@@ -20,6 +20,9 @@
 
 #include "ir/Optimizer.h"
 
+
+#include "optimizer/type_analysis.h"
+
 using namespace rir;
 
 extern "C" void resetCompileExpressionOverride();
