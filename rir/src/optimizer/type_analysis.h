@@ -1,6 +1,11 @@
 #ifndef RIR_OPTIMIZER_TYPE_H
 #define RIR_OPTIMIZER_TYPE_H
 
+#include <algorithm>
+
+#include "../ir/CodeEditor.h"
+#include "../code/framework.h"
+#include "../code/analysis.h"
 
 
 namespace rir {
@@ -76,19 +81,104 @@ public:
 
     bool mergeWith(AType const & other) {
         bool result = false;
-        // TODO fill this in
-
-
+// TODO
         return result;
     }
 
+    AType(Exists e = Exists::no):
+        type(Type::bottom),
+        eType(ElementType::bottom),
+        length(LENGTH_BOTTOM),
+        exists(e) {
+    }
+
+    static AType top() {
+        return AType(Type::top, ElementType::top, LENGTH_TOP, Exists::yes);
+    }
+
+    static AType bottom() {
+        return AType();
+    }
+
+    Type type;
+    ElementType eType;
+    Length length;
+    Exists exists;
+
 private:
-    Type type_;
-    ElementType eType_;
-    Length length_;
-    Exists exists_;
+
+    AType(Type t, ElementType et, Length l, Exists e):
+        type(t),
+        eType(et),
+        length(l),
+        exists(e) {
+    }
+
 };
 
+class TypeAnalysis : public ForwardAnalysis<AbstractState<AType>>, public InstructionDispatcher::Receiver {
+public:
+    TypeAnalysis() :
+        dispatcher_(*this) {
+
+    }
+
+protected:
+
+    AbstractState<AType> * initialState() override {
+        auto * result = new AbstractState<AType>();
+        for (SEXP x : code_->arguments()) {
+            (*result)[x].exists = AType::Exists::yes;
+        }
+        return result;
+    }
+
+    void ldvar_(CodeEditor::Iterator ins) override {
+        BC bc = *ins;
+        SEXP vName = bc.immediateConst();
+        auto & x = current();
+        x.stack().push(x.env()[vName]);
+    }
+
+    void stvar_(CodeEditor::Iterator ins) override {
+        BC bc = *ins;
+        SEXP vName = bc.immediateConst();
+        auto & x = current();
+        x.env()[vName] = x.stack().pop();
+    }
+
+    void add(CodeEditor::Iterator ins) {
+        AType lhs = current().pop();
+        AType rhs = current().pop();
+        if (lhs.type == AType::Type::vector and rhs.type == AType::Type::vector) {
+            int newLength;
+            if (lhs.length == AType::LENGTH_TOP or rhs.length == AType::LENGTH_TOP)
+                newLength = AType::LENGTH_TOP;
+            else
+                newLength = std::max(lhs.length, rhs.length);
+
+
+        } else {
+            current().push(AType::top());
+        }
+
+
+    }
+
+
+
+
+
+
+    Dispatcher & dispatcher() override {
+        return dispatcher_;
+    }
+
+private:
+    InstructionDispatcher dispatcher_;
+
+
+};
 
 
 
