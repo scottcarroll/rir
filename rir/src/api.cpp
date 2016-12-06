@@ -20,6 +20,8 @@
 
 #include "ir/Optimizer.h"
 
+#include "optimizer/vector_analysis.h"
+
 using namespace rir;
 
 extern "C" void resetCompileExpressionOverride();
