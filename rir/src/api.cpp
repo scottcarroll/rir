@@ -43,6 +43,14 @@ REXPORT SEXP rir_analysis_signature(SEXP what) {
     return sa.finalState().exportToR();
 }
 
+REXPORT SEXP rir_analysis_vector(SEXP what) {
+    CodeEditor ce(what);
+    VectorAnalysis va;
+    va.analyze(ce);
+    va.print();
+
+    return R_NilValue;
+}
 
 REXPORT SEXP rir_da(SEXP what) {
     CodeEditor ce(what);
