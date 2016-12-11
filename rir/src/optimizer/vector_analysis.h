@@ -153,6 +153,14 @@ namespace rir {
             current().push(new_obj());
         }
 
+        void dup_(CodeEditor::Iterator ins) override {
+            auto & curr = current();
+            curr.push(curr.top());
+        }
+
+        void uniq_(CodeEditor::Iterator ins) override {
+        }
+
         void stvar_(CodeEditor::Iterator ins) override {
             BC bc = *ins;
             SEXP vName = bc.immediateConst();
@@ -167,6 +175,52 @@ namespace rir {
             varNames.insert(vName);
             auto & curr = current();
             curr.push(curr[vName]);
+        }
+
+        void generic_binop(CodeEditor::Iterator ins) {
+            auto & curr = current();
+            curr.pop(2);
+            curr.push(new_obj());
+        }
+
+        void idiv_(CodeEditor::Iterator ins) override {
+            generic_binop(ins);
+        }
+
+        void div_(CodeEditor::Iterator ins) override {
+            generic_binop(ins);
+        }
+
+        void mod_(CodeEditor::Iterator ins) override {
+            generic_binop(ins);
+        }
+
+        void add_(CodeEditor::Iterator ins) override {
+            generic_binop(ins);
+        }
+
+        void pow_(CodeEditor::Iterator ins) override {
+            generic_binop(ins);
+        }
+
+        void mul_(CodeEditor::Iterator ins) override {
+            generic_binop(ins);
+        }
+
+        void lt_(CodeEditor::Iterator ins) override {
+            generic_binop(ins);
+        }
+
+        void sub_(CodeEditor::Iterator ins) override {
+            generic_binop(ins);
+        }
+
+        void any(CodeEditor::Iterator ins) override {
+            BC bc = *ins;
+            // pop as many as we need, push as many tops as we need
+            current().pop(bc.popCount());
+            for (size_t i = 0, e = bc.pushCount(); i != e; ++i)
+                current().push(ALoc::top());
         }
 
         void print() override {
