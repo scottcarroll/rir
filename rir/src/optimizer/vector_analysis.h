@@ -31,7 +31,7 @@ namespace rir {
 
         typedef int32_t ARef;
         static const ARef ARef_NONE;
-        static const ARef ARef_UNIQE;
+        static const ARef ARef_UNIQUE;
         static const ARef ARef_SHARED;
 
         ALoc(LocType type = LocType::bottom, const LocSet & set = {}) : locType(type), locSet(set) {}
@@ -54,6 +54,31 @@ namespace rir {
             return *this;
         }
 
+        const ALoc & refCntSubassign(const ALoc & other, std::vector<ARef> & mem_tab) const {
+            if (other.locType == LocType::set) {
+                for (AAddr loc: other.locSet) {
+                    mem_tab[loc]++;
+                }
+            }
+
+            return *this;
+        }
+
+        bool shouldBeCopied(std::vector<ARef> & mem_tab) const {
+            if (locType == LocType::bottom) return false;
+            if (locType == LocType::top) return true;
+
+            Rprintf("Vector locations:\n");
+            for (AAddr loc : locSet) {
+                Rprintf("\t%d: %d\n", loc, mem_tab[loc]);
+                if (mem_tab[loc] > ARef_UNIQUE) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         static const ALoc & top() {
             static ALoc val(LocType::top);
             return val;
@@ -68,8 +93,8 @@ namespace rir {
             return bottom();
         }
 
-        static ALoc new_obj(std::vector<ARef> & mem_tab) {
-            mem_tab.push_back(ARef_NONE);
+        static ALoc new_obj(ARef rc, std::vector<ARef> & mem_tab) {
+            mem_tab.push_back(rc);
             AAddr a = mem_tab.size() - 1;
             return ALoc(LocType::set, {a});
         }
@@ -119,7 +144,7 @@ namespace rir {
                     it++;
 
                     for(; it != locSet.end(); it++) {
-                        Rprintf(", %d", *it);
+                        Rprintf(", %d%c", *it, mem_tab[*it] > 1 ? 'S' : 'U');
                     }
                 }
                 Rprintf("}");
@@ -131,7 +156,7 @@ namespace rir {
     };
 
     const ALoc::ARef ALoc::ARef_NONE = 0;
-    const ALoc::ARef ALoc::ARef_UNIQE = 1;
+    const ALoc::ARef ALoc::ARef_UNIQUE = 1;
     const ALoc::ARef ALoc::ARef_SHARED = 2;
 
     using AStateALoc = AbstractState<ALoc>;
@@ -149,8 +174,26 @@ namespace rir {
 //            return result;
 //        }
 
-        void push_(CodeEditor::Iterator) override {
-            current().push(new_obj());
+        void push_(CodeEditor::Iterator ins) override {
+            BC bc = *ins;
+            SEXP val = bc.immediateConst();
+            auto & curr = current();
+
+            //Rprintf("TYPEOF(val) = %d\n", TYPEOF(val));
+
+            switch (TYPEOF(val)) {
+                case VECSXP:
+                case INTSXP:
+                case REALSXP:
+                case CPLXSXP:
+                case LGLSXP:
+                case STRSXP:
+                case RAWSXP:
+                    curr.push(new_obj(ALoc::ARef_UNIQUE));
+                    break;
+                default:
+                    curr.push(ALoc::bottom());
+            }
         }
 
         void dup_(CodeEditor::Iterator ins) override {
@@ -159,6 +202,30 @@ namespace rir {
         }
 
         void uniq_(CodeEditor::Iterator ins) override {
+            auto & curr = current();
+            if (curr.top().shouldBeCopied(mem_tab)) {
+                curr.top() = new_obj();
+            }
+        }
+
+        void swap_(CodeEditor::Iterator ins) override {
+            auto & curr = current();
+            ALoc a = curr.pop();
+            ALoc b = curr.pop();
+            curr.push(a);
+            curr.push(b);
+        }
+
+        void pick_(CodeEditor::Iterator ins) override {
+            BC bc = *ins;
+            int n = bc.immediate.i;
+            auto & curr = current();
+            ALoc v = curr[n];
+
+            for (int i = 0; i < n - 1; i++) {
+                curr[i + 1] = curr[i];
+            }
+            curr.top() = v;
         }
 
         void stvar_(CodeEditor::Iterator ins) override {
@@ -175,6 +242,47 @@ namespace rir {
             varNames.insert(vName);
             auto & curr = current();
             curr.push(curr[vName]);
+        }
+
+        void subassign_helper(const ALoc & vec, const ALoc & val) {
+            auto & curr = current();
+
+            refCntSubassign(vec, val);
+            curr.pop(3);
+
+            if (vec.shouldBeCopied(mem_tab)) {
+                curr.push(new_obj());
+            }
+            else {
+                curr.push(vec);
+            }
+        }
+
+        void subassign_(CodeEditor::Iterator ins) override {
+            Rprintf("subassign_\n");
+            auto & curr = current();
+            ALoc val = curr.stack()[2];
+            // We don't care about the index since
+            // we don't model vector element pointers.
+            ALoc vec = curr.stack()[0];
+            subassign_helper(vec, val);
+        }
+
+        void dispatch_stack_(CodeEditor::Iterator ins) override {
+            Rprintf("dispatch_stack_\n");
+            auto & curr = current();
+            CallSite cs = ins.callSite();
+            std::string fnName = CHAR(PRINTNAME(cs.selector()));
+
+            if (fnName == "[<-") { // Assuming this never gets redefined
+                ALoc val = curr.stack()[0];
+                ALoc vec = curr.stack()[2];
+                subassign_helper(vec, val);
+            }
+            else {
+                curr.pop(3);
+                curr.push(ALoc::top());
+            }
         }
 
         void generic_binop(CodeEditor::Iterator ins) {
@@ -215,13 +323,10 @@ namespace rir {
             generic_binop(ins);
         }
 
-        void any(CodeEditor::Iterator ins) override {
-            BC bc = *ins;
-            // pop as many as we need, push as many tops as we need
-            current().pop(bc.popCount());
-            for (size_t i = 0, e = bc.pushCount(); i != e; ++i)
-                current().push(ALoc::top());
-        }
+//        void any(CodeEditor::Iterator ins) override {
+//            Rprintf("Called any: ");
+//            (*ins).print();
+//        }
 
         void print() override {
             Rprintf("Vector analysis:\n");
@@ -238,8 +343,13 @@ namespace rir {
         ALoc & refCntAssign(ALoc & a, const ALoc & b) {
             return a.refCntAssign(b, mem_tab);
         }
-        ALoc new_obj() {
-            return ALoc::new_obj(mem_tab);
+
+        const ALoc & refCntSubassign(const ALoc & a, const ALoc & b) {
+            return a.refCntSubassign(b, mem_tab);
+        }
+
+        ALoc new_obj(ALoc::ARef rc = ALoc::ARef_NONE) {
+            return ALoc::new_obj(rc, mem_tab);
         }
 
         Dispatcher & dispatcher() override {
