@@ -22,6 +22,7 @@ namespace rir {
     public:
         enum class LocType {
             bottom,
+            ignore,
             set,
             top
         };
@@ -41,6 +42,7 @@ namespace rir {
             if (locType == LocType::set and locSet.size() == 1) {
                 // The only case when we can unambiguously decrease reference count of lvalue
                 mem_tab[*locSet.begin()]--;
+                Rprintf("!!! DECREF !!!\n");
             }
             // Now we have to increase the reference count of every possible rvalue
             if (other.locType == LocType::set) {
@@ -65,7 +67,7 @@ namespace rir {
         }
 
         bool shouldBeCopied(std::vector<ARef> & mem_tab) const {
-            if (locType == LocType::bottom) return false;
+            if (locType == LocType::ignore) return false;
             if (locType == LocType::top) return true;
 
             Rprintf("Vector locations:\n");
@@ -84,6 +86,11 @@ namespace rir {
             return val;
         }
 
+        static const ALoc & ignore() {
+            static ALoc val(LocType::ignore);
+            return val;
+        }
+
         static const ALoc & bottom() {
             static ALoc val;
             return val;
@@ -96,12 +103,14 @@ namespace rir {
         static ALoc new_obj(ARef rc, std::vector<ARef> & mem_tab) {
             mem_tab.push_back(rc);
             AAddr a = mem_tab.size() - 1;
+            Rprintf("\t\t\tNEW_OBJ %u\n", a);
             return ALoc(LocType::set, {a});
         }
 
         bool mergeWith(const ALoc & other) {
             // bottom + bottom
             // top + top
+            // ignore + ignore
             if (locType != LocType::set and locType == other.locType) {
                 return false;
             }
@@ -120,6 +129,13 @@ namespace rir {
                 return false;
             }
 
+            // ignore + _
+            // _ + ignore
+            if (locType == LocType::ignore or other.locType == LocType::ignore) {
+                locType = LocType::top;
+                return true;
+            }
+
             // set + set
             if(std::includes(locSet.begin(), locSet.end(), other.locSet.begin(), other.locSet.end())) {
                 return false;
@@ -135,6 +151,9 @@ namespace rir {
             }
             else if (locType == LocType::bottom) {
                 Rprintf("B");
+            }
+            else if (locType == LocType::ignore) {
+                Rprintf("I");
             }
             else {
                 Rprintf("{");
@@ -176,6 +195,7 @@ namespace rir {
 
         void push_(CodeEditor::Iterator ins) override {
             BC bc = *ins;
+            bc.print();
             SEXP val = bc.immediateConst();
             auto & curr = current();
 
@@ -192,16 +212,18 @@ namespace rir {
                     curr.push(new_obj(ALoc::ARef_UNIQUE));
                     break;
                 default:
-                    curr.push(ALoc::bottom());
+                    curr.push(ALoc::ignore());
             }
         }
 
         void dup_(CodeEditor::Iterator ins) override {
+            (*ins).print();
             auto & curr = current();
             curr.push(curr.top());
         }
 
         void uniq_(CodeEditor::Iterator ins) override {
+            (*ins).print();
             auto & curr = current();
             if (curr.top().shouldBeCopied(mem_tab)) {
                 curr.top() = new_obj();
@@ -209,6 +231,7 @@ namespace rir {
         }
 
         void swap_(CodeEditor::Iterator ins) override {
+            (*ins).print();
             auto & curr = current();
             ALoc a = curr.pop();
             ALoc b = curr.pop();
@@ -218,34 +241,52 @@ namespace rir {
 
         void pick_(CodeEditor::Iterator ins) override {
             BC bc = *ins;
+            bc.print();
             int n = bc.immediate.i;
             auto & curr = current();
             ALoc v = curr[n];
 
-            for (int i = 0; i < n - 1; i++) {
-                curr[i + 1] = curr[i];
+            for (int i = n; i > 0; i--) {
+                curr[i] = curr[i - 1];
             }
             curr.top() = v;
         }
 
         void stvar_(CodeEditor::Iterator ins) override {
             BC bc = *ins;
+            bc.print();
             SEXP vName = bc.immediateConst();
             varNames.insert(vName);
             auto & curr = current();
             refCntAssign(curr[vName], curr.pop());
+
+            const char * str = CHAR(PRINTNAME(vName));
+            Rprintf("\t\t\t%s: ", str);
+            curr[vName].print(mem_tab);
+            Rprintf("\n");
         }
 
         void ldvar_(CodeEditor::Iterator ins) override {
             BC bc = *ins;
+            bc.print();
             SEXP vName = bc.immediateConst();
             varNames.insert(vName);
             auto & curr = current();
             curr.push(curr[vName]);
+
+            const char * str = CHAR(PRINTNAME(vName));
+            Rprintf("\t\t\t%s: ", str);
+            curr[vName].print(mem_tab);
+            Rprintf("\n");
         }
 
         void subassign_helper(const ALoc & vec, const ALoc & val) {
             auto & curr = current();
+
+//            Rprintf("SUBASSIGN:\n");
+//            Rprintf("\tvec = "); vec.print(mem_tab);
+//            Rprintf("\n\tval = "); val.print(mem_tab);
+//            Rprintf("\n");
 
             refCntSubassign(vec, val);
             curr.pop(3);
@@ -259,9 +300,10 @@ namespace rir {
         }
 
         void subassign_(CodeEditor::Iterator ins) override {
-            Rprintf("subassign_\n");
+            (*ins).print();
             auto & curr = current();
             ALoc val = curr.stack()[2];
+
             // We don't care about the index since
             // we don't model vector element pointers.
             ALoc vec = curr.stack()[0];
@@ -269,7 +311,7 @@ namespace rir {
         }
 
         void dispatch_stack_(CodeEditor::Iterator ins) override {
-            Rprintf("dispatch_stack_\n");
+            (*ins).print();
             auto & curr = current();
             CallSite cs = ins.callSite();
             std::string fnName = CHAR(PRINTNAME(cs.selector()));
@@ -286,6 +328,7 @@ namespace rir {
         }
 
         void generic_binop(CodeEditor::Iterator ins) {
+            (*ins).print();
             auto & curr = current();
             curr.pop(2);
             curr.push(new_obj());
