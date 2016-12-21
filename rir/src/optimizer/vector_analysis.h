@@ -8,6 +8,7 @@
 #include <vector>
 #include <algorithm>
 #include <cstdint>
+#include <unordered_map>
 
 #include "ir/CodeEditor.h"
 #include "code/framework.h"
@@ -27,24 +28,31 @@ namespace rir {
             top
         };
 
-        typedef uintptr_t AAddr;
+        typedef unsigned long AAddr;
         typedef std::set<AAddr> LocSet;
 
         typedef int32_t ARef;
+        typedef std::unordered_map<AAddr, ARef> MemTab;
+
         static const ARef ARef_NONE;
         static const ARef ARef_UNIQUE;
         static const ARef ARef_SHARED;
 
         ALoc(LocType type = LocType::bottom, const LocSet & set = {}) : locType(type), locSet(set) {}
 
-        ALoc & refCntAssign(const ALoc & other, std::vector<ARef> & mem_tab) {
+        ALoc & refCntAssign(const ALoc & other, MemTab & mem_tab) {
             // Update reference count of lvalue and rvalue
-            if (locType == LocType::set and locSet.size() == 1) {
-                // The only case when we can unambiguously decrease reference count of lvalue
-                AAddr pos = *locSet.begin();
-                Rprintf("\t\t\tDECREF: %d%c -> ", pos, getFlag(mem_tab[pos]));
-                mem_tab[pos]--;
-                Rprintf("%d%c\n", pos, getFlag(mem_tab[pos]));
+            if (locType == LocType::set) {
+                Rprintf("\t\t\tDECREF: ");
+                print(mem_tab);
+                Rprintf(" -> ");
+
+                for (AAddr loc: locSet) {
+                    mem_tab[loc]--;
+                }
+
+                print(mem_tab);
+                Rprintf("\n");
             }
             // Now we have to increase the reference count of every possible rvalue
             if (other.locType == LocType::set) {
@@ -65,7 +73,7 @@ namespace rir {
             return *this;
         }
 
-        const ALoc & refCntSubassign(const ALoc & other, std::vector<ARef> & mem_tab) const {
+        const ALoc & refCntSubassign(const ALoc & other, MemTab & mem_tab) const {
             if (other.locType == LocType::set) {
                 for (AAddr loc: other.locSet) {
                     mem_tab[loc]++;
@@ -75,7 +83,7 @@ namespace rir {
             return *this;
         }
 
-        bool shouldBeCopied(std::vector<ARef> & mem_tab) const {
+        bool shouldBeCopied(MemTab & mem_tab) const {
             if (locType == LocType::ignore) return false;
             if (locType == LocType::top) return true;
 
@@ -109,11 +117,10 @@ namespace rir {
             return bottom();
         }
 
-        static ALoc new_obj(ARef rc, std::vector<ARef> & mem_tab) {
-            mem_tab.push_back(rc);
-            AAddr a = mem_tab.size() - 1;
-            Rprintf("\t\t\tNEW OBJ: %u\n", a);
-            return ALoc(LocType::set, {a});
+        static ALoc new_obj(AAddr id, ARef rc, MemTab & mem_tab) {
+            mem_tab[id] = rc;
+            Rprintf("\t\t\tNEW OBJ: %u\n", id);
+            return ALoc(LocType::set, {id});
         }
 
         bool mergeWith(const ALoc & other) {
@@ -154,7 +161,7 @@ namespace rir {
             return true;
         }
 
-        void print(const std::vector<ARef> & mem_tab) const {
+        void print(const MemTab & mem_tab) const {
             if (locType == LocType::top) {
                 Rprintf("T");
             }
@@ -168,11 +175,11 @@ namespace rir {
                 Rprintf("{");
                 auto it = locSet.begin();
                 if (it != locSet.end()) {
-                    Rprintf("%d%c", *it, getFlag(mem_tab[*it]));
+                    Rprintf("%d%c", *it, getFlag(mem_tab.at(*it)));
                     it++;
 
                     for(; it != locSet.end(); it++) {
-                        Rprintf(", %d%c", *it, getFlag(mem_tab[*it]));
+                        Rprintf(", %d%c", *it, getFlag(mem_tab.at(*it)));
                     }
                 }
                 Rprintf("}");
@@ -206,6 +213,7 @@ namespace rir {
     class RefCountAbstractState : public AbstractState<AVALUE> {
     public:
         typedef typename AVALUE::ARef ARef;
+        typedef std::unordered_map<typename AVALUE::AAddr, ARef> MemTab;
 
         RefCountAbstractState() = default;
         RefCountAbstractState(RefCountAbstractState const &) = default;
@@ -224,33 +232,59 @@ namespace rir {
             bool changed = false;
 
             // Merge reference counts conservatively (take the maximum of each location's ref. count)
-            std::transform(memTab_.begin(), memTab_.end(),
-                           other.memTab_.begin(),
-                           memTab_.begin(), [&changed](ARef a, ARef b) {
-                if (a >= b) {
-                    return a;
+
+            for (auto & kv : memTab_) {
+                auto it = other.memTab_.find(kv.first);
+                if (it != other.memTab_.end()) {
+                    // There is the same allocation site in the other
+                    // memTab with potentially greater refcount.
+                    ARef rc = kv.second;
+                    ARef other_rc = it->second;
+                    if (rc < other_rc) {
+                        kv.second = other_rc;
+                        changed = true;
+                    }
                 }
-                else {
-                    // We have taken at least one value from the other vector
-                    // => the original (our) vector is changed
+            }
+
+            for (auto & kv : other.memTab_) {
+                auto it = memTab_.find(kv.first);
+                if (it == memTab_.end()) {
+                    // There is a new allocation site in the other memTab
+                    // not included in this one. We have to add it.
+                    memTab_[kv.first] = kv.second;
                     changed = true;
-                    return b;
                 }
-            });
+            }
+
+//            std::transform(memTab_.begin(), memTab_.end(),
+//                           other.memTab_.begin(),
+//                           memTab_.begin(), [&changed](ARef a, ARef b) {
+//                Rprintf("Merging %u, %u\n", a, b);
+//                if (a >= b) {
+//                    return a;
+//                }
+//                else {
+//                    // We have taken at least one value from the other vector
+//                    // => the original (our) vector is changed
+//                    changed = true;
+//                    return b;
+//                }
+//            });
 
             return result or changed;
         }
 
-        std::vector<ARef> & memTab() {
+        MemTab & memTab() {
             return memTab_;
         }
 
-        std::vector<ARef> const& memTab() const {
+        MemTab const& memTab() const {
             return memTab_;
         }
 
     private:
-        std::vector<ARef> memTab_;
+        MemTab memTab_;
     };
 
 
@@ -283,7 +317,7 @@ namespace rir {
                 case LGLSXP:
                 case STRSXP:
                 case RAWSXP:
-                    curr.push(new_obj(ALoc::ARef_UNIQUE));
+                    curr.push(new_obj(ins, ALoc::ARef_UNIQUE));
                     break;
                 default:
                     curr.push(ALoc::ignore());
@@ -300,7 +334,7 @@ namespace rir {
             (*ins).print();
             auto & curr = current();
             if (curr.top().shouldBeCopied(curr.memTab())) {
-                curr.top() = new_obj();
+                curr.top() = new_obj(ins);
             }
         }
 
@@ -354,7 +388,7 @@ namespace rir {
             Rprintf("\n");
         }
 
-        void subassign_helper(const ALoc & vec, const ALoc & val) {
+        void subassign_helper(CodeEditor::Iterator ins, const ALoc & vec, const ALoc & val) {
             auto & curr = current();
 
 //            Rprintf("SUBASSIGN:\n");
@@ -366,7 +400,7 @@ namespace rir {
             curr.pop(3);
 
             if (vec.shouldBeCopied(curr.memTab())) {
-                curr.push(new_obj());
+                curr.push(new_obj(ins));
             }
             else {
                 curr.push(vec);
@@ -381,7 +415,7 @@ namespace rir {
             // We don't care about the index since
             // we don't model vector element pointers.
             ALoc vec = curr.stack()[0];
-            subassign_helper(vec, val);
+            subassign_helper(ins, vec, val);
         }
 
         void dispatch_stack_(CodeEditor::Iterator ins) override {
@@ -393,7 +427,7 @@ namespace rir {
             if (fnName == "[<-") { // Assuming this never gets redefined
                 ALoc val = curr.stack()[0];
                 ALoc vec = curr.stack()[2];
-                subassign_helper(vec, val);
+                subassign_helper(ins, vec, val);
             }
             else {
                 curr.pop(3);
@@ -403,9 +437,10 @@ namespace rir {
 
         void generic_binop(CodeEditor::Iterator ins) {
             (*ins).print();
+
             auto & curr = current();
             curr.pop(2);
-            curr.push(new_obj());
+            curr.push(new_obj(ins));
         }
 
         void idiv_(CodeEditor::Iterator ins) override {
@@ -466,8 +501,9 @@ namespace rir {
             return a.refCntSubassign(b, current().memTab());
         }
 
-        ALoc new_obj(ALoc::ARef rc = ALoc::ARef_NONE) {
-            return ALoc::new_obj(rc, current().memTab());
+        ALoc new_obj(CodeEditor::Iterator ins, ALoc::ARef rc = ALoc::ARef_NONE) {
+            unsigned id = ins.asCursor(*code_).srcIdx();
+            return ALoc::new_obj(id, rc, current().memTab());
         }
 
         Dispatcher & dispatcher() override {
