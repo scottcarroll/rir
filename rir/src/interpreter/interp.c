@@ -1163,7 +1163,7 @@ INSTRUCTION(dispatch_stack_) {
     ostack_push(ctx, doDispatchStack(*c, nargs, id, env, pc, ctx));
 }
 
-//TODO l/w
+// TODO l/w
 INSTRUCTION(dispatch_) {
     unsigned id = readImmediate(pc);
     unsigned nargs = readImmediate(pc);
