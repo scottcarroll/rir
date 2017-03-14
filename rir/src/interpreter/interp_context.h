@@ -72,7 +72,10 @@ extern SEXP getterPlaceholderSym;
 extern SEXP quoteSym;
 extern SEXP callSym;
 extern SEXP closureSym;
+extern SEXP builtinSym;
+extern SEXP specialSym;
 extern SEXP argsSym;
+extern SEXP astSym;
 extern SEXP envSym;
 
 // TODO we might actually need to do more for the lengths (i.e. true length vs length)

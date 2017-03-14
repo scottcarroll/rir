@@ -36,7 +36,9 @@ rir.analysis.signature <- function(f) {
 }
 
 # possible whats:
-# * "call"
+# * "call": f -> call -> closure -> args -> env
+# * "builtin": f -> call -> builtin -> args -> env
+# * "special": f -> call -> special -> ast -> env
 # * "promise_eval"
 rir.trace <- function(what, f) {
     invisible(.Call("rir_trace", what, f))
@@ -55,6 +57,12 @@ rir.trace.install.default <- function() {
 
     rir.trace("call", function(call, closure, args, env)
         debug(call=call, closure=closure, args=args, env=env))
+
+    rir.trace("builtin", function(call, builtin, args, env)
+        debug(call=call, builtin=builtin, args=args, env=env))
+
+    rir.trace("special", function(call, special, ast, env)
+        debug(call=call, special=special, ast=ast, env=env))
 
     invisible(NULL);
 }

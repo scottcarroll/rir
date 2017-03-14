@@ -19,6 +19,9 @@ SEXP quoteSym;
 
 SEXP callSym;
 SEXP closureSym;
+SEXP builtinSym;
+SEXP specialSym;
+SEXP astSym;
 SEXP argsSym;
 SEXP envSym;
 
@@ -45,7 +48,10 @@ Context* context_create(CompilerCallback compiler,
 
     callSym = Rf_install("call");
     closureSym = Rf_install("closure");
+    builtinSym = Rf_install("builtin");
+    specialSym = Rf_install("special");
     argsSym = Rf_install("args");
+    astSym = Rf_install("ast");
     envSym = Rf_install("env");
 
     return c;

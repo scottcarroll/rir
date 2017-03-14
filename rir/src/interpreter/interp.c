@@ -602,6 +602,37 @@ SEXP doCall(Code* caller, SEXP callee, unsigned nargs, unsigned id, SEXP env,
         R_Visible = flag != 1;
         warnSpecial(callee, call);
 
+        // Tracing hook for specials.
+        SEXP tracer = tracing_get(RIR_TRACE_SPECIAL);
+        if (tracer && !RIR_tracing) {
+            // Turn off hooks for the duration of executin the tracer function.
+            RIR_tracing = TRUE;
+
+            // Insert values into argument list.
+            SEXP tracerArgumentList = PROTECT(CONS(
+                    call, CONS(callee, CONS(CDR(call), CONS(env, R_NilValue)))));
+
+            // Give arguments pretty names using symbols defined in
+            // interp_context.
+            SET_TAG(tracerArgumentList, callSym);
+            SET_TAG(CDR(tracerArgumentList), specialSym);
+            SET_TAG(CDDR(tracerArgumentList), astSym);
+            SET_TAG(CDDDR(tracerArgumentList), envSym);
+
+            // Execute tracer function.
+            applyClosure(R_NilValue, tracer, tracerArgumentList, R_EmptyEnv,
+                         R_NilValue);
+
+            // Allow trace argumentList to be garbage collected.
+            UNPROTECT(1);
+
+            // Turn tracing hooks back on.
+            // FIXME If there's an error we may not get back to this point, so
+            // RIR_tracing will stay off, and there's no way of tuning it back
+            // on.
+            RIR_tracing = FALSE;
+        }
+
         // Store and restore stack status in case we get back here through
         // non-local return
         // call it with the AST only
@@ -620,10 +651,43 @@ SEXP doCall(Code* caller, SEXP callee, unsigned nargs, unsigned id, SEXP env,
         PROTECT(argslist);
         if (flag < 2) R_Visible = flag != 1;
 
+        // Tracing hook for builtins.
+        SEXP tracer = tracing_get(RIR_TRACE_BUILTIN);
+        if (tracer && !RIR_tracing) {
+            // Turn off hooks for the duration of executin the tracer function.
+            RIR_tracing = TRUE;
+
+            // Insert values into argument list.
+            SEXP tracerArgumentList = PROTECT(CONS(
+                    call, CONS(callee, CONS(argslist, CONS(env, R_NilValue)))));
+
+            // Give arguments pretty names using symbols defined in
+            // interp_context.
+            SET_TAG(tracerArgumentList, callSym);
+            SET_TAG(CDR(tracerArgumentList), builtinSym);
+            SET_TAG(CDDR(tracerArgumentList), argsSym);
+            SET_TAG(CDDDR(tracerArgumentList), envSym);
+
+            // Execute tracer function.
+            applyClosure(R_NilValue, tracer, tracerArgumentList, R_EmptyEnv,
+                         R_NilValue);
+
+            // Allow trace argumentList to be garbage collected.
+            UNPROTECT(1);
+
+            // Turn tracing hooks back on.
+            // FIXME If there's an error we may not get back to this point, so
+            // RIR_tracing will stay off, and there's no way of tuning it back
+            // on.
+            RIR_tracing = FALSE;
+        }
+
         // Store and restore stack status in case we get back here through
         // non-local return
-        // XXX here
         result = f(call, callee, argslist, env);
+
+        // XXX exit
+
         if (flag < 2) R_Visible = flag != 1;
         UNPROTECT(1);
         break;
@@ -637,7 +701,7 @@ SEXP doCall(Code* caller, SEXP callee, unsigned nargs, unsigned id, SEXP env,
         SEXP body = BODY(callee);
         assert(TYPEOF(body) == EXTERNALSXP || !COMPILE_ON_DEMAND);
 
-        // Get tracer function.
+        // Tracing hook for regular closures.
         SEXP tracer = tracing_get(RIR_TRACE_CALL);
         if (tracer && !RIR_tracing) {
             // Turn off hooks for the duration of executin the tracer function.

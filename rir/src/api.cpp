@@ -119,13 +119,16 @@ REXPORT SEXP rir_trace(SEXP what, SEXP f) {
 
     Tracing& tracing = Tracing::instance();
 
-    if (s.compare("call") == 0) {
+    if (s.compare("call") == 0)
         tracing.addTracer(Tracing::Type::RIR_TRACE_CALL, f);
-    } else if (s.compare("promise_eval") == 0) {
+    else if (s.compare("builtin") == 0)
+        tracing.addTracer(Tracing::Type::RIR_TRACE_BUILTIN, f);
+    else if (s.compare("special") == 0)
+        tracing.addTracer(Tracing::Type::RIR_TRACE_SPECIAL, f);
+    else if (s.compare("promise_eval") == 0)
         tracing.addTracer(Tracing::Type::RIR_TRACE_PROMISE_EVAL, f);
-    } else {
+    else
         Rf_warning("unknown 'what'");
-    }
 
     return R_NilValue;
 }
