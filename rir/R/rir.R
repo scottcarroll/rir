@@ -34,3 +34,22 @@ rir.analysis.signature <- function(f) {
     names(result) <- x[[2]]
     result
 }
+
+rir.trace <- function(what, f) {
+    .Call("rir_trace", what, f)
+}
+
+rir.trace.install.default <- function() {
+    debug <- function(...)
+        mapply (
+            function(name, argument) {
+                cat(paste("[", toupper(name), "]\n"), sep = "")
+                .Internal(inspect(argument))
+            },
+            names(list(...)),
+            list(...)
+        )
+
+    rir.trace("call", function(call, closure, args, env)
+        debug(call=call, closure=closure, args=args, env=env))
+}

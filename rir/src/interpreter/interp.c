@@ -7,6 +7,8 @@
 #include "R/Funtab.h"
 #include "interpreter/deoptimizer.h"
 
+#include "tracing/Tracing.h"
+
 #define NOT_IMPLEMENTED assert(false)
 
 #undef eval
@@ -15,6 +17,9 @@ extern SEXP R_TrueValue;
 extern SEXP R_FalseValue;
 extern SEXP Rf_NewEnvironment(SEXP, SEXP, SEXP);
 extern Rboolean R_Visible;
+
+static Rboolean RIR_tracing = FALSE;
+
 
 // helpers
 
@@ -601,6 +606,7 @@ SEXP doCall(Code* caller, SEXP callee, unsigned nargs, unsigned id, SEXP env,
         // Store and restore stack status in case we get back here through
         // non-local return
         // call it with the AST only
+        // XXX here
         result = f(call, callee, CDR(call), env);
         if (flag < 2) R_Visible = flag != 1;
         break;
@@ -617,6 +623,7 @@ SEXP doCall(Code* caller, SEXP callee, unsigned nargs, unsigned id, SEXP env,
 
         // Store and restore stack status in case we get back here through
         // non-local return
+        // XXX here
         result = f(call, callee, argslist, env);
         if (flag < 2) R_Visible = flag != 1;
         UNPROTECT(1);
@@ -630,6 +637,29 @@ SEXP doCall(Code* caller, SEXP callee, unsigned nargs, unsigned id, SEXP env,
         // if body is INTSXP, it is rir serialized code, execute it directly
         SEXP body = BODY(callee);
         assert(TYPEOF(body) == EXTERNALSXP || !COMPILE_ON_DEMAND);
+
+        SEXP tracer = tracing_get(RIR_TRACE_CALL);
+        if (tracer && !RIR_tracing) {
+            RIR_tracing = TRUE;
+
+            // XXX may be garbage collected, but maybe not?
+            SEXP tracerArgumentList = PROTECT(
+                    CONS(call,
+                         CONS(callee,
+                              CONS(argslist,
+                                   CONS(env, R_NilValue)))));
+
+            SET_TAG(tracerArgumentList, callSym);
+            SET_TAG(CDR(tracerArgumentList), closureSym);
+            SET_TAG(CDDR(tracerArgumentList), argsSym);
+            SET_TAG(CDDDR(tracerArgumentList), envSym);
+
+            applyClosure(R_NilValue, tracer, tracerArgumentList, R_EmptyEnv, R_NilValue);
+
+            UNPROTECT(1);
+            RIR_tracing = FALSE;
+        }
+
         if (TYPEOF(body) == EXTERNALSXP) {
             assert(isValidFunctionSEXP(body));
             result =
@@ -637,12 +667,12 @@ SEXP doCall(Code* caller, SEXP callee, unsigned nargs, unsigned id, SEXP env,
             UNPROTECT(1);
             break;
         }
-
         Function * f = isValidClosureSEXP(callee);
 
         // Store and restore stack status in case we get back here through
         // non-local return
         result = applyClosure(call, callee, argslist, env, R_NilValue);
+        // XXX exit
         UNPROTECT(1); // argslist
         break;
     }
@@ -2003,6 +2033,7 @@ INSTRUCTION(seq_) {
     }
 
     // TODO: add a real guard here...
+    // FIXME: "I'll fix it at some point" also "ugly, ugly"
     assert(prim == findFun(Rf_install("seq"), env));
 
     SEXP from = ostack_at(ctx, 2);

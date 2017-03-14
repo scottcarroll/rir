@@ -17,6 +17,11 @@ SEXP setterPlaceholderSym;
 SEXP getterPlaceholderSym;
 SEXP quoteSym;
 
+SEXP callSym;
+SEXP closureSym;
+SEXP argsSym;
+SEXP envSym;
+
 Context* context_create(CompilerCallback compiler,
                         OptimizerCallback optimizer) {
     Context* c = malloc(sizeof(Context));
@@ -37,6 +42,12 @@ Context* context_create(CompilerCallback compiler,
     setterPlaceholderSym = Rf_install("*.placeholder.setter.*");
     getterPlaceholderSym = Rf_install("*.placeholder.getter.*");
     quoteSym = Rf_install("quote");
+
+    callSym = Rf_install("call");
+    closureSym = Rf_install("closure");
+    argsSym = Rf_install("args");
+    envSym = Rf_install("env");
+
     return c;
 }
 

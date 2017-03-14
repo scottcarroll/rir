@@ -20,6 +20,9 @@
 
 #include "ir/Optimizer.h"
 
+#include "R/Sexp.h"
+#include "tracing/Tracing.h"
+
 using namespace rir;
 
 REXPORT SEXP rir_disassemble(SEXP what) {
@@ -98,6 +101,31 @@ REXPORT SEXP rir_analysis_signature(SEXP what) {
     SignatureAnalysis sa;
     sa.analyze(ce);
     return sa.finalState().exportToR();
+}
+
+REXPORT SEXP rir_trace(SEXP what, SEXP f) {
+    if (TYPEOF(what) != STRSXP) {
+        Rf_warning("'what' should be a string");
+        return R_NilValue;
+    }
+
+    if (TYPEOF(f) != CLOSXP) {
+        Rf_warning("'f' should be a function of some kind");
+        return R_NilValue;
+    }
+
+    SEXP charSxp = STRING_ELT(what, 0);
+    std::string s = CHAR(charSxp);
+
+    Tracing& tracing = Tracing::instance();
+
+    if (s.compare("call") == 0) {
+        tracing.addTracer(Tracing::Type::RIR_TRACE_CALL, f);
+    } else {
+        Rf_warning("unknown 'what'");
+    }
+
+    return R_NilValue;
 }
 
 // startup ---------------------------------------------------------------------

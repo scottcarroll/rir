@@ -66,7 +66,8 @@ void printFunction(Function* f) {
         printCode(c);
 }
 
-// TODO change gnu-r to expect ptr and not bool and we can get rid of the wrapper
+// TODO change gnu-r to expect ptr and not bool and we can get rid of the
+// wrapper
 int isValidFunctionObject_int_wrapper(SEXP closure) {
     return isValidFunctionObject(closure) != nullptr;
 }

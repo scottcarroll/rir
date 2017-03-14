@@ -70,6 +70,10 @@ extern SEXP R_valueSym;
 extern SEXP setterPlaceholderSym;
 extern SEXP getterPlaceholderSym;
 extern SEXP quoteSym;
+extern SEXP callSym;
+extern SEXP closureSym;
+extern SEXP argsSym;
+extern SEXP envSym;
 
 // TODO we might actually need to do more for the lengths (i.e. true length vs length)
 
