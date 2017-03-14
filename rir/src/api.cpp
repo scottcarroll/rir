@@ -121,6 +121,8 @@ REXPORT SEXP rir_trace(SEXP what, SEXP f) {
 
     if (s.compare("call") == 0) {
         tracing.addTracer(Tracing::Type::RIR_TRACE_CALL, f);
+    } else if (s.compare("promise_eval") == 0) {
+        tracing.addTracer(Tracing::Type::RIR_TRACE_PROMISE_EVAL, f);
     } else {
         Rf_warning("unknown 'what'");
     }

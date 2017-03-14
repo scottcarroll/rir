@@ -20,7 +20,6 @@ extern Rboolean R_Visible;
 
 static Rboolean RIR_tracing = FALSE;
 
-
 // helpers
 
 INLINE SEXP getSrcAt(Code* c, OpcodeT* pc, Context* ctx) {
@@ -638,25 +637,34 @@ SEXP doCall(Code* caller, SEXP callee, unsigned nargs, unsigned id, SEXP env,
         SEXP body = BODY(callee);
         assert(TYPEOF(body) == EXTERNALSXP || !COMPILE_ON_DEMAND);
 
+        // Get tracer function.
         SEXP tracer = tracing_get(RIR_TRACE_CALL);
         if (tracer && !RIR_tracing) {
+            // Turn off hooks for the duration of executin the tracer function.
             RIR_tracing = TRUE;
 
-            // XXX may be garbage collected, but maybe not?
-            SEXP tracerArgumentList = PROTECT(
-                    CONS(call,
-                         CONS(callee,
-                              CONS(argslist,
-                                   CONS(env, R_NilValue)))));
+            // Insert values into argument list.
+            SEXP tracerArgumentList = PROTECT(CONS(
+                call, CONS(callee, CONS(argslist, CONS(env, R_NilValue)))));
 
+            // Give arguments pretty names using symbols defined in
+            // interp_context.
             SET_TAG(tracerArgumentList, callSym);
             SET_TAG(CDR(tracerArgumentList), closureSym);
             SET_TAG(CDDR(tracerArgumentList), argsSym);
             SET_TAG(CDDDR(tracerArgumentList), envSym);
 
-            applyClosure(R_NilValue, tracer, tracerArgumentList, R_EmptyEnv, R_NilValue);
+            // Execute tracer function.
+            applyClosure(R_NilValue, tracer, tracerArgumentList, R_EmptyEnv,
+                         R_NilValue);
 
+            // Allow trace argumentList to be garbage collected.
             UNPROTECT(1);
+
+            // Turn tracing hooks back on.
+            // FIXME If there's an error we may not get back to this point, so
+            // RIR_tracing will stay off, and there's no way of tuning it back
+            // on.
             RIR_tracing = FALSE;
         }
 
@@ -672,7 +680,8 @@ SEXP doCall(Code* caller, SEXP callee, unsigned nargs, unsigned id, SEXP env,
         // Store and restore stack status in case we get back here through
         // non-local return
         result = applyClosure(call, callee, argslist, env, R_NilValue);
-        // XXX exit
+
+        // XXX exit tracer function hook
         UNPROTECT(1); // argslist
         break;
     }

@@ -15,17 +15,15 @@ namespace rir {
 
 class Tracing {
 
-public:
-    static Tracing &instance() {
+  public:
+    static Tracing& instance() {
         static Tracing singleton;
         return singleton;
     }
 
 #endif
 
-    enum Type {
-        RIR_TRACE_CALL, RIR_TRACE_NUM_OF
-    };
+    enum Type { RIR_TRACE_CALL, RIR_TRACE_PROMISE_EVAL, RIR_TRACE_NUM_OF };
 
 #ifdef __cplusplus
 
@@ -48,10 +46,9 @@ public:
         return tracer[type];
     }
 
-private:
+  private:
     SEXP tracer[Type::RIR_TRACE_NUM_OF];
 };
-
 }
 
 #else
@@ -60,4 +57,4 @@ extern SEXP tracing_get(enum Type);
 
 #endif
 
-#endif //RIR_TRACING_H
+#endif // RIR_TRACING_H

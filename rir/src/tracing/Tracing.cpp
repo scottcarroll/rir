@@ -8,10 +8,14 @@ using namespace rir;
 
 extern "C" SEXP tracing_get(Tracing::Type type) {
     switch (type) {
-        case Tracing::Type::RIR_TRACE_CALL:
-            return Tracing::instance().getTracer(Tracing::Type::RIR_TRACE_CALL);
-        default:
-            assert(false);
+    // TODO why is this necessary?
+    case Tracing::Type::RIR_TRACE_CALL:
+        return Tracing::instance().getTracer(Tracing::Type::RIR_TRACE_CALL);
+    case Tracing::Type::RIR_TRACE_PROMISE_EVAL:
+        return Tracing::instance().getTracer
+            Tracing::Type::RIR_TRACE_PROMISE_EVAL);
+    default:
+        assert(false);
     }
     return nullptr;
 }
