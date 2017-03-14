@@ -610,7 +610,7 @@ SEXP doCall(Code* caller, SEXP callee, unsigned nargs, unsigned id, SEXP env,
 
             // Insert values into argument list.
             SEXP tracerArgumentList = PROTECT(CONS(
-                    call, CONS(callee, CONS(CDR(call), CONS(env, R_NilValue)))));
+                call, CONS(callee, CONS(CDR(call), CONS(env, R_NilValue)))));
 
             // Give arguments pretty names using symbols defined in
             // interp_context.
@@ -659,7 +659,7 @@ SEXP doCall(Code* caller, SEXP callee, unsigned nargs, unsigned id, SEXP env,
 
             // Insert values into argument list.
             SEXP tracerArgumentList = PROTECT(CONS(
-                    call, CONS(callee, CONS(argslist, CONS(env, R_NilValue)))));
+                call, CONS(callee, CONS(argslist, CONS(env, R_NilValue)))));
 
             // Give arguments pretty names using symbols defined in
             // interp_context.
@@ -1138,6 +1138,7 @@ INSTRUCTION(call_stack_) {
     ostack_push(ctx, res);
 }
 
+// TODO magics
 INSTRUCTION(static_call_stack_) {
     unsigned id = readImmediate(pc);
     unsigned nargs = readImmediate(pc);
@@ -1155,12 +1156,14 @@ INSTRUCTION(call_) {
     UNPROTECT(1);
 }
 
+// TODO more magic
 INSTRUCTION(dispatch_stack_) {
     unsigned id = readImmediate(pc);
     unsigned nargs = readImmediate(pc);
     ostack_push(ctx, doDispatchStack(*c, nargs, id, env, pc, ctx));
 }
 
+//TODO l/w
 INSTRUCTION(dispatch_) {
     unsigned id = readImmediate(pc);
     unsigned nargs = readImmediate(pc);

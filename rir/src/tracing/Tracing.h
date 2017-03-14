@@ -23,7 +23,13 @@ class Tracing {
 
 #endif
 
-    enum Type { RIR_TRACE_CALL, RIR_TRACE_BUILTIN, RIR_TRACE_SPECIAL, RIR_TRACE_PROMISE_EVAL, RIR_TRACE_NUM_OF };
+    enum Type {
+        RIR_TRACE_CALL,
+        RIR_TRACE_BUILTIN,
+        RIR_TRACE_SPECIAL,
+        RIR_TRACE_PROMISE_EVAL,
+        RIR_TRACE_NUM_OF
+    };
 
 #ifdef __cplusplus
 
