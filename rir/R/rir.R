@@ -74,17 +74,17 @@ rir.trace.install.default <- function() {
 
     # FIXME passing a promise to this tracer will cause it to be forced, which is not what we want
     #rir.trace("create promise", function(promise, env) {
-    #    cat(">>> CREATE\n")
+    #    cat(">>> CREATE PROMISE\n")
     #    debug(promise=promise, env=env)
     #})
 
     rir.trace("force promise", function(promise, value, env) {
-        cat(">>> FORCE\n")
+        cat(">>> FORCE PROMISE\n")
         debug(promise=promise, value=value, env=env)
     })
 
     rir.trace("lookup promise", function(promise, value, env) {
-        cat(">>> LOOKUP\n")
+        cat(">>> LOOKUP PROMISE\n")
         debug(promise=promise, value=value, env=env)
     })
 
