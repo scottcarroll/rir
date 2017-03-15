@@ -1,0 +1,6 @@
+TODO
+====
+
+* figure out where/how to make hooks for creating promises (mkPromise?) and do it without forcing promises
+* promise is forced after the hook for call?
+* promises don't get an env, just an empty one - fix

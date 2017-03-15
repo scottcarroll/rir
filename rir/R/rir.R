@@ -57,23 +57,36 @@ rir.trace.install.default <- function() {
             list(...)
         )
 
-    rir.trace("call", function(call, closure, args, env)
-        debug(call=call, closure=closure, args=args, env=env))
+    rir.trace("call", function(call, closure, args, env) {
+        cat(">>> CALL\n")
+        debug(call=call, closure=closure, args=args, env=env)
+    })
 
-    rir.trace("builtin", function(call, builtin, args, env)
-        debug(call=call, builtin=builtin, args=args, env=env))
+    rir.trace("builtin", function(call, builtin, args, env) {
+        cat(">>> BUILTIN\n")
+        debug(call=call, builtin=builtin, args=args, env=env)
+    })
 
-    rir.trace("special", function(call, special, ast, env)
-        debug(call=call, special=special, ast=ast, env=env))
+    rir.trace("special", function(call, special, ast, env) {
+        cat(">>> SPECIAL\n")
+        debug(call=call, special=special, ast=ast, env=env)
+    })
 
-    rir.trace("create promise", function(promise, env)
-        debug(promise=promise, env=env))
+    # FIXME passing a promise to this tracer will cause it to be forced, which is not what we want
+    #rir.trace("create promise", function(promise, env) {
+    #    cat(">>> CREATE\n")
+    #    debug(promise=promise, env=env)
+    #})
 
-    rir.trace("force promise", function(promise, value, env)
-        debug(promise=promise, value=value, env=env))
+    rir.trace("force promise", function(promise, value, env) {
+        cat(">>> FORCE\n")
+        debug(promise=promise, value=value, env=env)
+    })
 
-    rir.trace("lookup promise", function(promise, value, env)
-        debug(promise=promise, value=value, env=env))
+    rir.trace("lookup promise", function(promise, value, env) {
+        cat(">>> LOOKUP\n")
+        debug(promise=promise, value=value, env=env)
+    })
 
     invisible(NULL);
 }

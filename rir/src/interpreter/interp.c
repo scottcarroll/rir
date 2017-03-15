@@ -735,7 +735,6 @@ SEXP doCall(Code* caller, SEXP callee, unsigned nargs, unsigned id, SEXP env,
         // Store and restore stack status in case we get back here through
         // non-local return
         // call it with the AST only
-        // XXX here
         result = f(call, callee, CDR(call), env);
         if (flag < 2) R_Visible = flag != 1;
         break;
@@ -899,7 +898,7 @@ INLINE SEXP fixupAST(SEXP call, Context* ctx, size_t nargs) {
 
             SEXP p = val;
             if (TYPEOF(p) != PROMSXP) {
-                p = mkPROMISE(setterPlaceholderSym, R_NilValue);
+                p = mkPROMISE(setterPlaceholderSym, R_NilValue); // FIXME
                 SET_PRVALUE(p, val);
             }
 
