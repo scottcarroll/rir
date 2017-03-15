@@ -24,6 +24,8 @@ SEXP specialSym;
 SEXP astSym;
 SEXP argsSym;
 SEXP envSym;
+SEXP promiseSym;
+SEXP valueSym;
 
 Context* context_create(CompilerCallback compiler,
                         OptimizerCallback optimizer) {
@@ -53,6 +55,8 @@ Context* context_create(CompilerCallback compiler,
     argsSym = Rf_install("args");
     astSym = Rf_install("ast");
     envSym = Rf_install("env");
+    promiseSym = Rf_install("promise");
+    valueSym = Rf_install("value");
 
     return c;
 }

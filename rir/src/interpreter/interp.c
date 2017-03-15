@@ -97,18 +97,114 @@ INLINE SEXP createPromise(Code* code, SEXP env) {
     SEXP a = CONS_NR(functionStore(function(code)), R_NilValue);
     SET_ATTRIB(p, a);
     UNPROTECT(1);
+
+    // Tracing hook for promise creation.
+    SEXP tracer = tracing_get(RIR_TRACE_PROMISE_CREATE);
+    if (tracer && !RIR_tracing) {
+        // Turn off hooks for the duration of executin the tracer function.
+        RIR_tracing = TRUE;
+
+        // Insert values into argument list.
+        SEXP tracerArgumentList = PROTECT(CONS(p, CONS(env, R_NilValue)));
+
+        // Give arguments pretty names using symbols defined in
+        // interp_context.
+        SET_TAG(tracerArgumentList, promiseSym);
+        SET_TAG(CDR(tracerArgumentList), envSym);
+
+        // Execute tracer function.
+        applyClosure(R_NilValue, tracer, tracerArgumentList, R_EmptyEnv,
+                     R_NilValue);
+
+        // Allow trace argumentList to be garbage collected.
+        UNPROTECT(1);
+
+        // Turn tracing hooks back on.
+        // FIXME If there's an error we may not get back to this point, so
+        // RIR_tracing will stay off, and there's no way of tuning it back
+        // on.
+        RIR_tracing = FALSE;
+    }
+
     return p;
 }
 
 INLINE SEXP promiseValue(SEXP promise, Context * ctx) {
     // if already evaluated, return the value
     if (PRVALUE(promise) && PRVALUE(promise) != R_UnboundValue) {
-        promise = PRVALUE(promise);
-        assert(TYPEOF(promise) != PROMSXP);
-        SET_NAMED(promise, 2);
-        return promise;
+        SEXP promiseValue = PRVALUE(promise);
+        assert(TYPEOF(promiseValue) != PROMSXP);
+        SET_NAMED(promiseValue, 2);
+
+        SEXP tracer = tracing_get(RIR_TRACE_PROMISE_LOOKUP);
+        if (tracer && !RIR_tracing) {
+            // Turn off hooks for the duration of executin the tracer function.
+            RIR_tracing = TRUE;
+
+            SEXP env = R_EmptyEnv; // FIXME
+            //env = ctx->list;
+
+            // Insert values into argument list.
+            SEXP tracerArgumentList = PROTECT(CONS(promise, CONS(promiseValue, CONS(env, R_NilValue))));
+
+            // Give arguments pretty names using symbols defined in
+            // interp_context.
+            SET_TAG(tracerArgumentList, promiseSym);
+            SET_TAG(CDR(tracerArgumentList), valueSym);
+            SET_TAG(CDDR(tracerArgumentList), envSym);
+
+            // Execute tracer function.
+            applyClosure(R_NilValue, tracer, tracerArgumentList, R_EmptyEnv,
+                         R_NilValue);
+
+            // Allow trace argumentList to be garbage collected.
+            UNPROTECT(1);
+
+            // Turn tracing hooks back on.
+            // FIXME If there's an error we may not get back to this point, so
+            // RIR_tracing will stay off, and there's no way of tuning it back
+            // on.
+            RIR_tracing = FALSE;
+        }
+
+        return promiseValue;
     } else {
-        return forcePromise(promise);
+        // I Don't want to mess inside the R interpreter, so I'll just make hooks here.
+        SEXP result = forcePromise(promise);
+
+        // Tracing hook for promise forcing.
+        SEXP tracer = tracing_get(RIR_TRACE_PROMISE_FORCE);
+        if (tracer && !RIR_tracing) {
+            // Turn off hooks for the duration of executin the tracer function.
+            RIR_tracing = TRUE;
+
+            SEXP env = R_EmptyEnv; // FIXME
+            //env = ctx->list;
+
+            // Insert values into argument list.
+            SEXP tracerArgumentList = PROTECT(CONS(promise, CONS(result, CONS(env, R_NilValue))));
+
+            // Give arguments pretty names using symbols defined in
+            // interp_context.
+            SET_TAG(tracerArgumentList, promiseSym);
+            SET_TAG(CDR(tracerArgumentList), valueSym);
+            SET_TAG(CDDR(tracerArgumentList), envSym);
+
+            // Execute tracer function.
+            applyClosure(R_NilValue, tracer, tracerArgumentList, R_EmptyEnv,
+                         R_NilValue);
+
+            // Allow trace argumentList to be garbage collected.
+            UNPROTECT(1);
+
+            // Turn tracing hooks back on.
+            // FIXME If there's an error we may not get back to this point, so
+            // RIR_tracing will stay off, and there's no way of tuning it back
+            // on.
+            RIR_tracing = FALSE;
+        }
+
+        return result;
     }
 }
 
@@ -976,7 +1072,7 @@ SEXP doDispatchStack(Code* caller, size_t nargs, uint32_t id, SEXP env,
             CCODE f = getBuiltin(callee);
             int flag = getFlag(callee);
             // force all promises in the args list
-            for (SEXP a = actuals; a != R_NilValue; a = CDR(a))
+            for (SEXP a = actuals; a != R_NilValue; a = CDR(a)) // FIXME force promises??
                 SETCAR(a, Rf_eval(CAR(a), env));
             if (flag < 2)
                 R_Visible = flag != 1;

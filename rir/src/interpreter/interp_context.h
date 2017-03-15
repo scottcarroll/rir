@@ -77,6 +77,8 @@ extern SEXP specialSym;
 extern SEXP argsSym;
 extern SEXP astSym;
 extern SEXP envSym;
+extern SEXP promiseSym;
+extern SEXP valueSym;
 
 // TODO we might actually need to do more for the lengths (i.e. true length vs length)
 

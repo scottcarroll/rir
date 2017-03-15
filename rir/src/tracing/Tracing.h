@@ -27,7 +27,9 @@ class Tracing {
         RIR_TRACE_CALL,
         RIR_TRACE_BUILTIN,
         RIR_TRACE_SPECIAL,
-        RIR_TRACE_PROMISE_EVAL,
+        RIR_TRACE_PROMISE_CREATE,
+        RIR_TRACE_PROMISE_FORCE,
+        RIR_TRACE_PROMISE_LOOKUP,
         RIR_TRACE_NUM_OF
     };
 

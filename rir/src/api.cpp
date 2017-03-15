@@ -125,8 +125,12 @@ REXPORT SEXP rir_trace(SEXP what, SEXP f) {
         tracing.addTracer(Tracing::Type::RIR_TRACE_BUILTIN, f);
     else if (s.compare("special") == 0)
         tracing.addTracer(Tracing::Type::RIR_TRACE_SPECIAL, f);
-    else if (s.compare("promise_eval") == 0)
-        tracing.addTracer(Tracing::Type::RIR_TRACE_PROMISE_EVAL, f);
+    else if (s.compare("force promise") == 0)
+        tracing.addTracer(Tracing::Type::RIR_TRACE_PROMISE_FORCE, f);
+    else if (s.compare("create promise") == 0)
+        tracing.addTracer(Tracing::Type::RIR_TRACE_PROMISE_CREATE, f);
+    else if (s.compare("lookup promise") == 0)
+        tracing.addTracer(Tracing::Type::RIR_TRACE_PROMISE_LOOKUP, f);
     else
         Rf_warning("unknown 'what'");
 
