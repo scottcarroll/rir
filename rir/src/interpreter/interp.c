@@ -142,10 +142,11 @@ INLINE SEXP promiseValue(SEXP promise, Context * ctx) {
             RIR_tracing = TRUE;
 
             SEXP env = R_EmptyEnv; // FIXME
-            //env = ctx->list;
+            // env = ctx->list;
 
             // Insert values into argument list.
-            SEXP tracerArgumentList = PROTECT(CONS(promise, CONS(promiseValue, CONS(env, R_NilValue))));
+            SEXP tracerArgumentList = PROTECT(
+                CONS(promise, CONS(promiseValue, CONS(env, R_NilValue))));
 
             // Give arguments pretty names using symbols defined in
             // interp_context.
@@ -169,7 +170,8 @@ INLINE SEXP promiseValue(SEXP promise, Context * ctx) {
 
         return promiseValue;
     } else {
-        // I Don't want to mess inside the R interpreter, so I'll just make hooks here.
+        // I Don't want to mess inside the R interpreter, so I'll just make
+        // hooks here.
         SEXP result = forcePromise(promise);
 
         // Tracing hook for promise forcing.
@@ -179,10 +181,11 @@ INLINE SEXP promiseValue(SEXP promise, Context * ctx) {
             RIR_tracing = TRUE;
 
             SEXP env = R_EmptyEnv; // FIXME
-            //env = ctx->list;
+            // env = ctx->list;
 
             // Insert values into argument list.
-            SEXP tracerArgumentList = PROTECT(CONS(promise, CONS(result, CONS(env, R_NilValue))));
+            SEXP tracerArgumentList =
+                PROTECT(CONS(promise, CONS(result, CONS(env, R_NilValue))));
 
             // Give arguments pretty names using symbols defined in
             // interp_context.
@@ -1072,7 +1075,8 @@ SEXP doDispatchStack(Code* caller, size_t nargs, uint32_t id, SEXP env,
             CCODE f = getBuiltin(callee);
             int flag = getFlag(callee);
             // force all promises in the args list
-            for (SEXP a = actuals; a != R_NilValue; a = CDR(a)) // FIXME force promises??
+            for (SEXP a = actuals; a != R_NilValue;
+                 a = CDR(a)) // FIXME force promises??
                 SETCAR(a, Rf_eval(CAR(a), env));
             if (flag < 2)
                 R_Visible = flag != 1;
