@@ -137,6 +137,36 @@ REXPORT SEXP rir_trace(SEXP what, SEXP f) {
     return R_NilValue;
 }
 
+REXPORT SEXP rir_unset_tracer(SEXP what) {
+    if (TYPEOF(what) != STRSXP) {
+        Rf_warning("'what' should be a string");
+        return R_NilValue;
+    }
+
+    SEXP charSxp = STRING_ELT(what, 0);
+    std::string s = CHAR(charSxp);
+
+    Tracing& tracing = Tracing::instance();
+
+    if (s.compare("call") == 0)
+        tracing.unsetTracer(Tracing::Type::RIR_TRACE_CALL);
+    else if (s.compare("builtin") == 0)
+        tracing.unsetTracer(Tracing::Type::RIR_TRACE_BUILTIN);
+    else if (s.compare("special") == 0)
+        tracing.unsetTracer(Tracing::Type::RIR_TRACE_SPECIAL);
+    else if (s.compare("force promise") == 0)
+        tracing.unsetTracer(Tracing::Type::RIR_TRACE_PROMISE_FORCE);
+    else if (s.compare("create promise") == 0)
+        tracing.unsetTracer(Tracing::Type::RIR_TRACE_PROMISE_CREATE);
+    else if (s.compare("lookup promise") == 0)
+        tracing.unsetTracer(Tracing::Type::RIR_TRACE_PROMISE_LOOKUP);
+    else
+        Rf_warning("unknown 'what'");
+
+    return R_NilValue;
+}
+}
+
 // startup ---------------------------------------------------------------------
 
 bool startup() {

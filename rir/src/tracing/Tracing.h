@@ -54,6 +54,14 @@ class Tracing {
         return tracer[type];
     }
 
+    void unsetTracer(Type type) {
+        if (tracer[type]) {
+            // Tell garbage collector to eat this now.
+            R_ReleaseObject(tracer[type]);
+            tracer[type] = NULL;
+        }
+    }
+
   private:
     SEXP tracer[Type::RIR_TRACE_NUM_OF];
 };

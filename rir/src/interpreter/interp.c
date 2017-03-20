@@ -802,7 +802,7 @@ SEXP doCall(Code* caller, SEXP callee, unsigned nargs, unsigned id, SEXP env,
         // Tracing hook for regular closures.
         SEXP tracer = tracing_get(RIR_TRACE_CALL);
         if (tracer && !RIR_tracing) {
-            // Turn off hooks for the duration of executin the tracer function.
+            // Turn off hooks for the duration of executing the tracer function.
             RIR_tracing = TRUE;
 
             // Insert values into argument list.
