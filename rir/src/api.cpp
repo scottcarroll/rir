@@ -165,7 +165,6 @@ REXPORT SEXP rir_unset_tracer(SEXP what) {
 
     return R_NilValue;
 }
-}
 
 // startup ---------------------------------------------------------------------
 
