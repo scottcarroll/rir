@@ -78,6 +78,7 @@ DECLARE(c, "c");
 DECLARE(standardGeneric, "standardGeneric");
 DECLARE(debugBreak, ".debug.break");
 DECLARE(UseMethod, "UseMethod");
+DECLARE(printInvocation, ".printInvocation");
 
 #undef DECLARE
 } // namespace symbol

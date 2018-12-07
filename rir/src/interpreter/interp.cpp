@@ -2695,6 +2695,13 @@ SEXP evalRirCode(Code* c, Context* ctx, SEXP* env, const CallContext* callCtxt,
             NEXT();
         }
 
+        INSTRUCTION(inv_count_) {
+            Function* f = c -> function();
+            unsigned invCount = f -> invocationCount;
+            std::cout << "This function's invocation count is: " << invCount << "\n";
+            NEXT();
+        }
+
         LASTOP;
     }
 

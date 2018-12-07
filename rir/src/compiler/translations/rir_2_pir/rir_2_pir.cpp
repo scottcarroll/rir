@@ -541,6 +541,10 @@ bool Rir2Pir::compileBC(
         insert(new Int3());
         break;
 
+    case Opcode::inv_count_:
+        insert(new PrintInvocation());
+        break;
+
     // TODO implement!
     // (silently ignored)
     case Opcode::invisible_:

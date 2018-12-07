@@ -441,6 +441,11 @@ DEF_INSTR(int3_, 0, 0, 0, 1)
  */
 DEF_INSTR(deopt_, 1, -1, 0, 0)
 
+/**
+ * inv_count_ :: returns the functions printInvocation
+ */
+DEF_INSTR(inv_count_, 0, 0, 0, 0)
+
 /*
  * recording bytecodes are used to collect information
  * They keep a struct from RuntimeFeedback.h inline, that's why they are quite
